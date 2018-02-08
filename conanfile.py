@@ -2,7 +2,7 @@
 
 import os
 from conans import AutoToolsBuildEnvironment, ConanFile, tools, VisualStudioBuildEnvironment
-from conans.tools import cpu_count, os_info, SystemPackageTool, download, unzip
+from conans.tools import cpu_count, os_info, SystemPackageTool
 import shutil
 
 def which(program):
@@ -63,7 +63,7 @@ class QtConan(ConanFile):
     build_command = None
 
     def system_requirements(self):
-        if os.getuid() != 0:
+        if self.settings.os == 'Linux' and os.getuid() != 0:
             self.output.info('Running as normal user, not going to attempt to run sudo to install dependencies')
             return
 
@@ -115,12 +115,12 @@ class QtConan(ConanFile):
         use_local = False
 
         if use_local:
-            download_url = r'C:\\tmp\\qt-everywhere-opensource-src-{self.version}5.9.3'
+            download_url = r'C:\\tmp\\qt-everywhere-opensource-src-{self.version}'
             # This still takes forever
             self.run(f"robocopy {download_url} {self.source_dir} /s /e")
         else:
-            zip_name = f"{self.name}-{self.version}.zip"
-            ext = "tar.xz" if self.settings.os == "Linux" else "zip"
+            ext = 'tar.xz' if self.settings.os == 'Linux' else 'tar.gz'
+            archive = f'{self.name}-{self.version}.{ext}'
 
             if major >= 9:
                 download_url = f'https://download.qt.io/official_releases/qt/{major}/{self.version}/single/qt-everywhere-opensource-src-{self.version}.{ext}'
@@ -128,13 +128,13 @@ class QtConan(ConanFile):
                 download_url = f'http://download.qt.io/archive/qt/{release}.{major}/{self.version}/single/qt-everywhere-opensource-src-{self.version}.{ext}'
 
             self.output.info("Downloading %s"%download_url)
-            download(download_url, zip_name)
+            tools.download(url=download_url, filename=archive)
             if ext == 'tar.xz':
-                self.run(f"tar xf {zip_name}")
+                self.run(f"tar xf {archive}")
             else:
-                unzip(zip_name)
+                tools.unzip(archive)
             shutil.move(f"qt-everywhere-opensource-src-{self.version}", self.source_dir)
-            os.unlink(zip_name)
+            os.unlink(archive)
 
     def build(self):
 
