@@ -39,24 +39,14 @@ class QtConan(ConanFile):
     description = 'Conan.io package for Qt library.'
     source_dir = 'qt5'
     license = 'LGPL'
+    url = 'https://www.qt.io/'
     settings = 'os', 'arch', 'compiler', 'build_type'
     options = {
         'shared':            [True, False],
-        # 'gamepad':           [True, False],
-        # 'canvas3d':          [True, False],
-        # 'graphicaleffects':  [True, False],
-        # 'imageformats':      [True, False],
-        # 'location':          [True, False],
-        # 'serialport':        [True, False],
-        # 'svg':               [True, False],
-        # 'tools':             [True, False],
-        # 'webengine':         [True, False],
-        # 'websockets':        [True, False],
-        # 'xmlpatterns':       [True, False],
         'opengl':            ['desktop', 'dynamic'],
         'openssl':           ['no', 'yes', 'linked'],
     }
-    default_options =
+    default_options = (
         'shared=True',
         # 'canvas3d=True',
         # 'gamepad=False',
@@ -64,14 +54,8 @@ class QtConan(ConanFile):
         # 'imageformats=False',
         # 'location=False',
         'opengl=desktop',
-        'openssl=no'
-        # 'serialport=False',
-        # 'svg=False',
-        # 'tools=True',
-        # 'webengine=False',
-        # 'websockets=False',
-        # 'xmlpatterns=False',
-
+        'openssl=no',
+    )
 
     license = 'http://doc.qt.io/qt-5/lgpl.html'
     short_paths = True
@@ -79,48 +63,50 @@ class QtConan(ConanFile):
     build_command = None
 
     def system_requirements(self):
+        if os.getuid() != 0:
+            self.output.info('Running as normal user, not going to attempt to run sudo to install dependencies')
+            return
+
         pack_names = None
-        if os_info.linux_distro == "ubuntu":
+        if os_info.linux_distro == 'ubuntu':
             pack_names = [
-                "libgl1-mesa-dev", "libxcb1", "libxcb1-dev",
-                "libx11-xcb1", "libx11-xcb-dev", "libxcb-keysyms1",
-                "libxcb-keysyms1-dev", "libxcb-image0", "libxcb-image0-dev",
-                "libxcb-shm0", "libxcb-shm0-dev", "libxcb-icccm4",
-                "libxcb-icccm4-dev", "libxcb-sync1", "libxcb-sync-dev",
-                "libxcb-xfixes0-dev", "libxrender-dev", "libxcb-shape0-dev",
-                "libxcb-randr0-dev", "libxcb-render-util0", "libxcb-render-util0-dev",
-                "libxcb-glx0-dev", "libxcb-xinerama0", "libxcb-xinerama0-dev",
-                "dos2unix", "xz-utils"
+                'libgl1-mesa-dev', 'libxcb1', 'libxcb1-dev',
+                'libx11-xcb1', 'libx11-xcb-dev', 'libxcb-keysyms1',
+                'libxcb-keysyms1-dev', 'libxcb-image0', 'libxcb-image0-dev',
+                'libxcb-shm0', 'libxcb-shm0-dev', 'libxcb-icccm4',
+                'libxcb-icccm4-dev', 'libxcb-sync1', 'libxcb-sync-dev',
+                'libxcb-xfixes0-dev', 'libxrender-dev', 'libxcb-shape0-dev',
+                'libxcb-randr0-dev', 'libxcb-render-util0', 'libxcb-render-util0-dev',
+                'libxcb-glx0-dev', 'libxcb-xinerama0', 'libxcb-xinerama0-dev',
+                'dos2unix', 'xz-utils'
             ]
 
-            if self.settings.arch == "x86":
+            if self.settings.arch == 'x86':
                 full_pack_names = []
                 for pack_name in pack_names:
-                    full_pack_names += [pack_name + ":i386"]
+                    full_pack_names += [pack_name + ':i386']
                 pack_names = full_pack_names
 
         if pack_names:
             installer = SystemPackageTool()
             installer.update() # Update the package database
-            installer.install(" ".join(pack_names)) # Install the package
+            installer.install(' '.join(pack_names)) # Install the package
 
     def config_options(self):
-        if self.settings.os != "Windows":
+        if self.settings.os != 'Windows':
             del self.options.opengl
             del self.options.openssl
 
     def requirements(self):
-        if self.settings.os == "Windows":
-            if self.options.openssl == "yes":
-                self.requires("OpenSSL/1.0.2l@conan/stable", dev=True)
-            elif self.options.openssl == "linked":
-                self.requires("OpenSSL/1.0.2l@conan/stable")
+        if self.settings.os == 'Windows':
+            if self.options.openssl == 'yes':
+                self.requires('OpenSSL/1.0.2l@conan/stable', dev=True)
+            elif self.options.openssl == 'linked':
+                self.requires('OpenSSL/1.0.2l@conan/stable')
 
     def source(self):
 
-        release = int(self.version.split(".")[0])
-        major = int(self.version.split(".")[1])
-        minor = ".".join(self.version.split(".")[:2])
+        (release, major, minor) = [int(i) for i in self.version.split('.')]
 
         download("https://download.qt.io/official_releases/jom/jom_1_1_2.zip", "jom.zip")
         unzip("jom.zip")
@@ -151,29 +137,8 @@ class QtConan(ConanFile):
             os.unlink(zip_name)
 
     def build(self):
-        # submodules = ['qtbase']
-        # if self.options.canvas3d:
-        #     submodules.append('qtcanvas3d')
-        # if self.options.gamepad:
-        #     submodules.append('qtgamepad')
-        # if self.options.graphicaleffects:
-        #     submodules.append('qtgraphicaleffects')
-        # if self.options.imageformats:
-        #     submodules.append('qtimageformats')
-        # if self.options.location:
-        #     submodules.append('qtlocation')
-        # if self.options.serialport:
-        #     submodules.append('qtserialport')
-        # if self.options.svg:
-        #     submodules.append('qtsvg')
-        # if self.options.tools:
-        #     submodules.append('qttools')
-        # if self.options.webengine:
-        #     submodules.append('qtwebengine')
-        # if self.options.websockets:
-        #     submodules.append('qtwebsockets')
-        # if self.options.xmlpatterns:
-        #     submodules.append('qtxmlpatterns')
+
+        (release, major, minor) = [int(i) for i in self.version.split('.')]
 
         args = [
             '-opensource',
@@ -181,14 +146,7 @@ class QtConan(ConanFile):
             '-nomake examples',
             '-nomake tests',
             '-debug' if self.settings.build_type=='Debug' else '-release',
-            '-skip webengine',
-            '-skip charts',
-            '-skip datavis3d',
-            '-skip speech',
-            '-skip purchasing',
-            '-skip remoteobjects',
             '-skip script',
-            '-skip webview',
             '-make libs',
             '-make tools',
             '-plugin-sql-sqlite',
@@ -202,6 +160,15 @@ class QtConan(ConanFile):
         ]
         if not self.options.shared:
             args.insert(0, "-static")
+
+        if major >= 9:
+            args.append('-skip webengine')
+            args.append('-skip charts')
+            args.append('-skip datavis3d')
+            args.append('-skip speech')
+            args.append('-skip purchasing')
+            args.append('-skip remoteobjects')
+            args.append('-skip webview')
 
         if self.settings.os == "Windows":
             if self.settings.compiler == "Visual Studio":
@@ -321,12 +288,12 @@ class QtConan(ConanFile):
             if self.settings.arch == "x86":
                 args += ["-platform macx-clang-32"]
 
-        self.output.info("Using '%s' threads" % str(cpu_count()))
-        self.output.info("Configure options: %s"%(' '.join(args)))
+        self.output.info('Using %s threads'%str(cpu_count()))
+        self.output.info('Configure options: %s'%(' '.join(args)))
         self.run(f"find \"{self.source_dir}\" -name 'configure' -exec chmod u+x {{}} \\;")
         self.run(f"find \"{self.source_dir}\" -name 'configure' -exec dos2unix {{}} {{}} \\;")
-        self.run("cd %s && ./configure %s"%(self.source_dir, " ".join(args)))
-        self.run("cd %s && make -j %s"%(self.source_dir, str(cpu_count())))
+        self.run(f'cd {self.source_dir} && ./configure %s'%(' '.join(args)))
+        self.run(f'cd {self.source_dir} && make -j %s'%(str(cpu_count())))
     # }}}
 
     def package(self):
