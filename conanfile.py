@@ -48,11 +48,6 @@ class QtConan(ConanFile):
     }
     default_options = (
         'shared=True',
-        # 'canvas3d=True',
-        # 'gamepad=False',
-        # 'graphicaleffects=False',
-        # 'imageformats=False',
-        # 'location=False',
         'opengl=desktop',
         'openssl=no',
     )
