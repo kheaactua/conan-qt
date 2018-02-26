@@ -103,8 +103,9 @@ class QtConan(ConanFile):
 
         (release, major, minor) = [int(i) for i in self.version.split('.')]
 
-        download("https://download.qt.io/official_releases/jom/jom_1_1_2.zip", "jom.zip")
-        unzip("jom.zip")
+        if 'Windows' == self.settings.os:
+            tools.download("https://download.qt.io/official_releases/jom/jom_1_1_2.zip", "jom.zip")
+            tools.unzip("jom.zip")
 
         # Debugging flag that should be removed.
         use_local = False
