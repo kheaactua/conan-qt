@@ -1,9 +1,7 @@
-# Based on https://github.com/osechet/conan-qt/blob/master/conanfile.py
-
-import os
+import os, shutil
 from conans import AutoToolsBuildEnvironment, ConanFile, tools, VisualStudioBuildEnvironment
 from conans.tools import cpu_count, os_info, SystemPackageTool
-import shutil
+from conans.errors import ConanException
 
 def which(program):
     """
@@ -58,10 +56,6 @@ class QtConan(ConanFile):
     build_command = None
 
     def system_requirements(self):
-        if self.settings.os == 'Linux' and os.getuid() != 0:
-            self.output.info('Running as normal user, not going to attempt to run sudo to install dependencies')
-            return
-
         pack_names = None
         if os_info.linux_distro == 'ubuntu':
             pack_names = [
@@ -84,8 +78,11 @@ class QtConan(ConanFile):
 
         if pack_names:
             installer = SystemPackageTool()
-            installer.update() # Update the package database
-            installer.install(' '.join(pack_names)) # Install the package
+            try:
+                installer.update() # Update the package database
+                installer.install(' '.join(pack_names)) # Install the package
+            except ConanException:
+                self.output.warn('Could not run system requirements installer.  Required packages might be missing.')
 
     def config_options(self):
         if self.settings.os != 'Windows':
