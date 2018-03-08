@@ -97,7 +97,6 @@ class QtConan(ConanFile):
                 self.requires('OpenSSL/1.0.2l@conan/stable')
 
     def source(self):
-
         (release, major, minor) = [int(i) for i in self.version.split('.')]
 
         if 'Windows' == self.settings.os:
@@ -130,7 +129,6 @@ class QtConan(ConanFile):
             os.unlink(archive)
 
     def build(self):
-
         (release, major, minor) = [int(i) for i in self.version.split('.')]
 
         args = [
