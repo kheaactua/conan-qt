@@ -115,7 +115,7 @@ class QtConan(ConanFile):
             archive = f'{self.name}-{self.version}.{ext}'
 
             if major >= 9:
-                download_url = f'https://download.qt.io/official_releases/qt/{major}/{self.version}/single/qt-everywhere-opensource-src-{self.version}.{ext}'
+                download_url = f'https://download.qt.io/official_releases/qt/{release}.{major}/{self.version}/single/qt-everywhere-opensource-src-{self.version}.{ext}'
             else:
                 download_url = f'http://download.qt.io/archive/qt/{release}.{major}/{self.version}/single/qt-everywhere-opensource-src-{self.version}.{ext}'
 
