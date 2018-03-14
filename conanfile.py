@@ -1,4 +1,4 @@
-import os, shutil
+import os, shutil, glob
 from conans import AutoToolsBuildEnvironment, ConanFile, tools, VisualStudioBuildEnvironment
 from conans.tools import cpu_count, os_info, SystemPackageTool
 from conans.errors import ConanException
@@ -67,7 +67,7 @@ class QtConan(ConanFile):
                 'libxcb-xfixes0-dev', 'libxrender-dev', 'libxcb-shape0-dev',
                 'libxcb-randr0-dev', 'libxcb-render-util0', 'libxcb-render-util0-dev',
                 'libxcb-glx0-dev', 'libxcb-xinerama0', 'libxcb-xinerama0-dev',
-                'dos2unix', 'xz-utils'
+                'dos2unix', 'xz-utils', 'chrpath'
             ]
 
             if self.settings.arch == 'x86':
@@ -294,10 +294,25 @@ class QtConan(ConanFile):
         elif self.settings.os == "Linux":
             self.run("cd %s && make install"%(self.source_dir))
 
+            # Set the RPATH of the installed binaries
+            # Maybe the RUNPATH should also be set? http://blog.qt.io/blog/2011/10/28/rpath-and-runpath/
+            # https://forum.qt.io/topic/59670/how-to-compile-qt-with-relative-runpath-paths/4
+            self.output.info('Modifying RPATH on Qt binaries to use relative paths')
+            binaries = glob.glob(os.path.join(self.package_folder, 'bin', '*'))
+            for b in binaries:
+                try:
+                    # self.output.info(f"chrpath -r '$OGIGIN/../lib' {b}")
+                    self.run(f"chrpath -r '$ORIGIN/../lib' {b}")
+                except ConanException:
+                    self.output.info(f'Could not modify rpath on {b}')
+                    pass
+
     def package_info(self):
-        libs = ['Concurrent', 'Core', 'DBus',
-                'Gui', 'Network', 'OpenGL',
-                'Sql', 'Test', 'Widgets', 'Xml']
+        libs = [
+            'Concurrent', 'Core', 'DBus',
+            'Gui', 'Network', 'OpenGL',
+            'Sql', 'Test', 'Widgets', 'Xml'
+        ]
 
         self.cpp_info.libs = []
         self.cpp_info.includedirs = ["include"]
