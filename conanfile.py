@@ -170,6 +170,8 @@ class QtConan(ConanFile):
             self._build_unix(args)
 
     def _build_msvc(self, args): # {{{
+        self.output.info('Using MSVC build procedure')
+
         # self.build_command = find_executable("jom.exe")
         # self.build_command = which(os.path.join(self.source_dir, "jom.exe"))
         self.build_command = which("jom.exe")
@@ -240,6 +242,8 @@ class QtConan(ConanFile):
     # }}}
 
     def _build_mingw(self, args): # {{{
+        self.output.info('Using MinGW build procedure')
+
         env_build = AutoToolsBuildEnvironment(self)
         env = {'PATH': [
                     f'{self.build_folder}/bin',
@@ -270,6 +274,8 @@ class QtConan(ConanFile):
     # }}}
 
     def _build_unix(self, args): # {{{
+        self.output.info('Using *nix build procedure')
+
         if self.settings.os == "Linux":
             args += ["-silent", "-xcb"]
             if self.settings.arch == "x86":
