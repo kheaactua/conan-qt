@@ -49,6 +49,10 @@ class QtConan(ConanFile):
         'opengl=desktop',
         'openssl=no',
     )
+    requires = (
+        'helpers/0.3@ntc/stable',
+    )
+    exports = 'md5s/md5sums-*.txt'
 
     license = 'http://doc.qt.io/qt-5/lgpl.html'
     short_paths = True
@@ -97,6 +101,8 @@ class QtConan(ConanFile):
                 self.requires('OpenSSL/1.0.2l@conan/stable')
 
     def source(self):
+        import platform_helpers
+
         (release, major) = [int(i) for i in self.version.split('.')[:2]]
 
         if 'Windows' == self.settings.os:
@@ -107,25 +113,32 @@ class QtConan(ConanFile):
         use_local = False
 
         if use_local:
-            download_url = r'C:\\tmp\\qt-everywhere-opensource-src-{self.version}'
-            # This still takes forever
+            download_url = os.path.join(r'C:\\', 'tmp', 'qt-everywhere-opensource-src-{self.version}')
+            # This still takes forever...
             self.run(f"robocopy {download_url} {self.source_dir} /s /e")
         else:
-            ext = 'tar.xz' if self.settings.os == 'Linux' else 'tar.gz'
-            archive = f'{self.name}-{self.version}.{ext}'
+            ext = 'tar.xz' if self.settings.os == 'Linux' else 'zip'
 
             if major >= 9:
                 download_url = f'https://download.qt.io/official_releases/qt/{release}.{major}/{self.version}/single/qt-everywhere-opensource-src-{self.version}.{ext}'
             else:
                 download_url = f'http://download.qt.io/archive/qt/{release}.{major}/{self.version}/single/qt-everywhere-opensource-src-{self.version}.{ext}'
 
+            archive = os.path.basename(download_url)
             self.output.info("Downloading %s"%download_url)
             tools.download(url=download_url, filename=archive)
+
+            # Check against our cached md5 hashes.
+            hash_file = os.path.join('md5s', f'md5sums-{self.version}.txt')
+            if not os.path.exists(hash_file):
+                raise ConanException(f'Cannot find cached md5sums for Qt {self.version}.  Please download the md5 hashes from %s/md5sums.txt as md5sums-{self.version}.txt and place them in the md5s directory with this recipe.'%(os.path.dirname(download_url)))
+            platform_helpers.check_hash(file_path=archive, hash_file=hash_file, fnc=tools.check_md5)
+
             if ext == 'tar.xz':
-                self.run(f"tar xf {archive}")
+                self.run(f'tar xf {archive}')
             else:
                 tools.unzip(archive)
-            shutil.move(f"qt-everywhere-opensource-src-{self.version}", self.source_dir)
+            shutil.move(f'qt-everywhere-opensource-src-{self.version}', self.source_dir)
             os.unlink(archive)
 
     def build(self):
