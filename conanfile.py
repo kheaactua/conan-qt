@@ -97,7 +97,7 @@ class QtConan(ConanFile):
                 self.requires('OpenSSL/1.0.2l@conan/stable')
 
     def source(self):
-        (release, major, minor) = [int(i) for i in self.version.split('.')]
+        (release, major) = [int(i) for i in self.version.split('.')[:2]]
 
         if 'Windows' == self.settings.os:
             tools.download("https://download.qt.io/official_releases/jom/jom_1_1_2.zip", "jom.zip")
@@ -129,7 +129,7 @@ class QtConan(ConanFile):
             os.unlink(archive)
 
     def build(self):
-        (release, major, minor) = [int(i) for i in self.version.split('.')]
+        major = int(self.version.split('.')[1])
 
         args = [
             '-opensource',
@@ -304,8 +304,7 @@ class QtConan(ConanFile):
                     # self.output.info(f"chrpath -r '$OGIGIN/../lib' {b}")
                     self.run(f"chrpath -r '$ORIGIN/../lib' {b}")
                 except ConanException:
-                    self.output.info(f'Could not modify rpath on {b}')
-                    pass
+                    self.output.warn(f'Could not modify rpath on {b}')
 
     def package_info(self):
         libs = [
