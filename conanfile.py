@@ -3,28 +3,6 @@ from conans import AutoToolsBuildEnvironment, ConanFile, tools, VisualStudioBuil
 from conans.tools import cpu_count, os_info, SystemPackageTool
 from conans.errors import ConanException
 
-def which(program):
-    """
-    Locate a command.
-    """
-    def is_exe(fpath):
-        """
-        Check if a path is executable.
-        """
-        return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
-
-    fpath, _ = os.path.split(program)
-    if fpath:
-        if is_exe(program):
-            return program
-    else:
-        for path in os.environ["PATH"].split(os.pathsep):
-            path = path.strip('"')
-            exe_file = os.path.join(path, program)
-            if is_exe(exe_file):
-                return exe_file
-
-    return None
 
 class QtConan(ConanFile):
     """
@@ -183,6 +161,8 @@ class QtConan(ConanFile):
             self._build_unix(args)
 
     def _build_msvc(self, args): # {{{
+        from platform_helpers import which
+
         self.output.info('Using MSVC build procedure')
 
         # self.build_command = find_executable("jom.exe")
