@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+# -*- coding: future_fstrings -*-
+# -*- coding: utf-8 -*-
+
 import os, shutil, glob
 from conans import AutoToolsBuildEnvironment, ConanFile, tools, VisualStudioBuildEnvironment
 from conans.tools import cpu_count, os_info, SystemPackageTool
@@ -280,8 +284,8 @@ class QtConan(ConanFile):
 
         self.output.info('Using %s threads'%str(cpu_count()))
         self.output.info('Configure options: %s'%(' '.join(args)))
-        self.run(f"find \"{self.source_dir}\" -name 'configure' -exec chmod u+x {{}} \\;")
-        self.run(f"find \"{self.source_dir}\" -name 'configure' -exec dos2unix {{}} {{}} \\;")
+        self.run("find \"%s\" -name 'configure' -exec chmod u+x {{}} \\;"%self.source_dir)
+        self.run("find \"%s\" -name 'configure' -exec dos2unix {{}} {{}} \\;"%self.source_dir)
         self.run(f'cd {self.source_dir} && ./configure %s'%(' '.join(args)))
         self.run(f'cd {self.source_dir} && make -j %s'%(str(cpu_count())))
     # }}}
