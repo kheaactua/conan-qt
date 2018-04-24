@@ -53,7 +53,7 @@ class QtConan(ConanFile):
                 'libxcb-xfixes0-dev', 'libxrender-dev', 'libxcb-shape0-dev',
                 'libxcb-randr0-dev', 'libxcb-render-util0', 'libxcb-render-util0-dev',
                 'libxcb-glx0-dev', 'libxcb-xinerama0', 'libxcb-xinerama0-dev',
-                'dos2unix', 'xz-utils', 'chrpath'
+                'dos2unix', 'xz-utils', 'chrpath', 'libdbus-1-dev'
             ]
 
             if self.settings.arch == 'x86':
@@ -136,7 +136,7 @@ class QtConan(ConanFile):
             '-make libs',
             '-make tools',
             '-plugin-sql-sqlite',
-            f'-prefix {self.package_folder}'
+            f'-prefix {self.package_folder}',
             # "-skip texttospeech",
             # "-skip datavisualization",
             # "-skip scripttools",
@@ -146,6 +146,8 @@ class QtConan(ConanFile):
         ]
         if not self.options.shared:
             args.insert(0, "-static")
+        if 'Linux' == os.settings.system:
+            args.append('-dbus')
 
         if major >= 9:
             args.append('-skip webengine')
@@ -284,8 +286,8 @@ class QtConan(ConanFile):
 
         self.output.info('Using %s threads'%str(cpu_count()))
         self.output.info('Configure options: %s'%(' '.join(args)))
-        self.run("find \"%s\" -name 'configure' -exec chmod u+x {{}} \\;"%self.source_dir)
-        self.run("find \"%s\" -name 'configure' -exec dos2unix {{}} {{}} \\;"%self.source_dir)
+        self.run("find \"%s\" -name 'configure' -exec chmod u+x {} \\;"%self.source_dir)
+        self.run("find \"%s\" -name 'configure' -exec dos2unix {} {} \\;"%self.source_dir)
         self.run(f'cd {self.source_dir} && ./configure %s'%(' '.join(args)))
         self.run(f'cd {self.source_dir} && make -j %s'%(str(cpu_count())))
     # }}}
