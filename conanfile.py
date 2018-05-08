@@ -146,7 +146,7 @@ class QtConan(ConanFile):
         ]
         if not self.options.shared:
             args.insert(0, "-static")
-        if 'Linux' == os.settings.system:
+        if 'Linux' == self.settings.os:
             args.append('-dbus')
 
         if major >= 9:
@@ -277,7 +277,9 @@ class QtConan(ConanFile):
 
         if self.settings.os == "Linux":
             args += ["-silent", "-xcb"]
-            if self.settings.arch == "x86":
+            if 'clang' in self.settings.compiler:
+                args += ['-platform linux-clang']
+            elif self.settings.arch == "x86":
                 args += ["-platform linux-g++-32"]
         else:
             args += ["-silent", "-no-framework"]
