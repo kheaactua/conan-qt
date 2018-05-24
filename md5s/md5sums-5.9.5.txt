@@ -1,5 +1,2 @@
-fe29d8ef5dd98e07dfb16156d738b38c  qt-opensource-linux-x64-5.9.5.run
-d00e76128a11d44d0fc688b39f0dc98a  qt-opensource-mac-x64-5.9.5.dmg
-92a57a6137f6207819e9edaad4cc94c7  qt-opensource-windows-x86-5.9.5.exe
-406c610b84c8cc0601ad490b59750d60  qt-opensource-windows-x86-pdb-files-desktop-5.9.5.zip
-ea2fc51f7f2294a9eeac8c178f6e521f  qt-opensource-windows-x86-pdb-files-uwp-5.9.5.zip
+0e6eaa2d118f9854345c2debb12e8536  qt-everywhere-opensource-src-5.9.5.tar.xz
+a3f3def98cfb0c2317e94706800311c8  qt-everywhere-opensource-src-5.9.5.zip
