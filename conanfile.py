@@ -275,22 +275,24 @@ class QtConan(ConanFile):
     def _build_unix(self, args): # {{{
         self.output.info('Using *nix build procedure')
 
+        args += ['-silent']
         if self.settings.os == "Linux":
-            args += ["-silent", "-xcb"]
+            args += ["-xcb"]
             if 'clang' in self.settings.compiler:
                 args += ['-platform linux-clang']
             elif self.settings.arch == "x86":
                 args += ["-platform linux-g++-32"]
         else:
-            args += ["-silent", "-no-framework"]
+            args += ["-no-framework"]
             if self.settings.arch == "x86":
                 args += ["-platform macx-clang-32"]
 
-        self.output.info('Using %s threads'%str(cpu_count()))
-        self.output.info('Configure options: %s'%(' '.join(args)))
         self.run("find \"%s\" -name 'configure' -exec chmod u+x {} \\;"%self.source_dir)
         self.run("find \"%s\" -name 'configure' -exec dos2unix {} {} \\;"%self.source_dir)
+        self.output.info('Using %s threads'%str(cpu_count()))
+        self.output.info('Configure options: %s'%(' '.join(args)))
         self.run(f'cd {self.source_dir} && ./configure %s'%(' '.join(args)))
+        self.output.info('Running make')
         self.run(f'cd {self.source_dir} && make -j %s'%(str(cpu_count())))
     # }}}
 
