@@ -3,8 +3,7 @@
 
 from conans import ConanFile, tools
 from distutils.spawn import find_executable
-import os
-import shutil
+import os, shutil, re, glob
 
 class QtConan(ConanFile):
     name = "Qt"
@@ -64,6 +63,8 @@ class QtConan(ConanFile):
     )
     no_copy_source = True
     default_options = ("shared=True", "fPIC=True", "opengl=no", "openssl=no") + tuple(module[2:] + "=False" for module in submodules)
+
+    requires = 'helpers/0.3@ntc/stable'
     short_paths = True
     build_policy = "missing"
 
@@ -230,3 +231,21 @@ class QtConan(ConanFile):
         if self.settings.os == "Windows":
             self.env_info.path.append(os.path.join(self.package_folder, "bin"))
         self.env_info.CMAKE_PREFIX_PATH.append(self.package_folder)
+
+        if 'Linux' == self.settings.os:
+            # Populate the pkg-config environment variables
+            with tools.pythonpath(self):
+                from platform_helpers import adjustPath, appendPkgConfigPath
+
+                pkg_config_path = os.path.join(self.package_folder, 'lib', 'pkgconfig')
+                appendPkgConfigPath(adjustPath(pkg_config_path), self.env_info)
+
+                pc_files = glob.glob(adjustPath(os.path.join(pkg_config_path, '*.pc')))
+                for f in pc_files:
+                    p_name = re.sub(r'\.pc$', '', os.path.basename(f))
+                    p_name = re.sub(r'\W', '_', p_name.upper())
+                    setattr(self.env_info, f'PKG_CONFIG_{p_name}_PREFIX', adjustPath(self.package_folder))
+
+                appendPkgConfigPath(adjustPath(pkg_config_path), self.env_info)
+
+# vim: ts=4 sw=4 expandtab ffs=unix ft=python foldmethod=marker :
