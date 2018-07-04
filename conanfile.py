@@ -6,7 +6,7 @@ from distutils.spawn import find_executable
 import os, shutil, re, glob
 
 class QtConan(ConanFile):
-    name = "Qt"
+    name = "qt"
     version = "5.9.6"
     description = "Conan.io package for Qt library."
     url = "https://github.com/bincrafters/conan-qt"
