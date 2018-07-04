@@ -248,4 +248,19 @@ class QtConan(ConanFile):
 
                 appendPkgConfigPath(adjustPath(pkg_config_path), self.env_info)
 
+        # Insert a qt.conf file into the bin folder to allow the Qt executables
+        # to find the plugins directory, otherwise calling exectuables such as
+        # qmlplugindump will throw errors such as "plugin cannot be loaded for
+        # module the specified module could not be found"
+
+        conf_file = os.path.join(self.package_folder, 'bin', 'qt.conf')
+
+        with tools.pythonpath(self):
+            from platform_helpers import adjustPath, appendPkgConfigPath
+            conf_contents = '''[Paths]
+Plugins = %s/plugins
+'''%(self.package_folder)
+        with open(conf_file, 'w') as f: f.write(conf_contents)
+        self.output.info('Created %s pointing at the local plugin directory'%conf_file)
+
 # vim: ts=4 sw=4 expandtab ffs=unix ft=python foldmethod=marker :
