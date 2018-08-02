@@ -11,16 +11,15 @@ from conans.errors import ConanException
 class QtConan(ConanFile):
     """
     Qt Conan package
-
-    Tested with Qt 5.9.3, 5.9.4
     """
 
-    name = 'qt'
+    name        = 'qt'
+    version     = "5.3.2"
     description = 'Conan.io package for Qt library.'
-    source_dir = 'qt5'
-    license = 'LGPL'
-    url = 'https://www.qt.io/'
-    settings = 'os', 'arch', 'compiler', 'build_type'
+    source_dir  = 'qt5'
+    license     = 'LGPL'
+    url         = 'https://www.qt.io/'
+    settings    = 'os', 'arch', 'compiler', 'build_type'
     options = {
         'shared':            [True, False],
         'opengl':            ['desktop', 'dynamic'],
@@ -335,7 +334,11 @@ class QtConan(ConanFile):
             self.cpp_info.includedirs += ["include/Qt%s" % lib]
 
         # Put qmake and DLLs in the path
-        self.env_info.path.append(os.path.join(self.package_folder, "bin"))
+        if self.settings.os == "Windows":
+            self.env_info.path.append(os.path.join(self.package_folder, "bin"))
+
+        # Make it easier for CMake to find Qt
+        self.env_info.CMAKE_PREFIX_PATH.append(self.package_folder)
 
         if 'Linux' == self.settings.os:
             # Populate the pkg-config environment variables
