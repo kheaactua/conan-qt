@@ -54,7 +54,8 @@ class QtConan(ConanFile):
         "qtwebview",
         "qtwinextras",
         "qtx11extras",
-        "qtxmlpatterns"]
+        "qtxmlpatterns",
+    ]
     options = dict({
         "shared": [True, False],
         "fPIC": [True, False],
