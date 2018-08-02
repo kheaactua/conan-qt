@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from conans import ConanFile, tools
+from conans.errors import ConanException
 from distutils.spawn import find_executable
 import os, shutil, re, glob
 
@@ -85,8 +86,11 @@ class QtConan(ConanFile):
                 pack_names = [item+":i386" for item in pack_names]
 
             installer = tools.SystemPackageTool()
-            installer.update() # Update the package database
-            installer.install(" ".join(pack_names)) # Install the package
+            try:
+                installer.update() # Update the package database
+                installer.install(" ".join(pack_names)) # Install the package
+            except ConanException:
+                self.output.warn('Could not run build requirements installer.  Requisite packages might be missing.')
 
     def requirements(self):
         if self.options.openssl == "yes":
@@ -114,9 +118,12 @@ class QtConan(ConanFile):
             if self.settings.arch == "x86":
                 pack_names = [item+":i386" for item in pack_names]
 
-            installer = tools.SystemPackageTool()
-            installer.update() # Update the package database
-            installer.install(" ".join(pack_names)) # Install the package
+            try:
+                installer = tools.SystemPackageTool()
+                installer.update() # Update the package database
+                installer.install(" ".join(pack_names)) # Install the package
+            except ConanException:
+                self.output.warn('Could not run system requirements installer.  Requisite packages might be missing.')
 
     def source(self):
         url = "http://download.qt.io/official_releases/qt/{0}/{1}/single/qt-everywhere-opensource-src-{1}"\
@@ -244,7 +251,7 @@ class QtConan(ConanFile):
                 for f in pc_files:
                     p_name = re.sub(r'\.pc$', '', os.path.basename(f))
                     p_name = re.sub(r'\W', '_', p_name.upper())
-                    setattr(self.env_info, f'PKG_CONFIG_{p_name}_PREFIX', adjustPath(self.package_folder))
+                    setattr(self.env_info, 'PKG_CONFIG_%s_PREFIX'%p_name, adjustPath(self.package_folder))
 
                 appendPkgConfigPath(adjustPath(pkg_config_path), self.env_info)
 
