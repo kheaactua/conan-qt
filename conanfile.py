@@ -170,9 +170,7 @@ class QtConan(ConanFile):
 
         self.output.info('Using MSVC build procedure')
 
-        # self.build_command = find_executable("jom.exe")
-        # self.build_command = which(os.path.join(self.source_dir, "jom.exe"))
-        self.build_command = which("jom.exe")
+        self.build_command = which('jom.exe', [self.source_folder])
         self.output.info("Attempting to find JOM at %s"%self.build_command)
         if self.build_command:
             build_args = ["-j", str(cpu_count())]
@@ -182,9 +180,6 @@ class QtConan(ConanFile):
         self.output.info("Using '%s %s' to build"%(self.build_command, " ".join(build_args)))
 
         env = {}
-        # env.update({'PATH': ['%s/qtbase/bin' % self.conanfile_directory,
-        #                      '%s/gnuwin32/bin' % self.conanfile_directory,
-        #                      '%s/qtrepotools/bin' % self.conanfile_directory]})
 
         # it seems not enough to set the vcvars for older versions
         if self.settings.compiler == "Visual Studio":
