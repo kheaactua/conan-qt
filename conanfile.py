@@ -174,7 +174,6 @@ class QtConan(ConanFile):
         # self.build_command = which(os.path.join(self.source_dir, "jom.exe"))
         self.build_command = which("jom.exe")
         self.output.info("Attempting to find JOM at %s"%self.build_command)
-        self.output.info("self.source_dir = %s"%self.source_dir)
         if self.build_command:
             build_args = ["-j", str(cpu_count())]
         else:
