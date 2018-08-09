@@ -87,6 +87,7 @@ class QtConan(ConanFile):
         (release, major) = [int(i) for i in self.version.split('.')[:2]]
 
         if 'Windows' == self.settings.os:
+            self.output.info('Downloading jom')
             tools.download("https://download.qt.io/official_releases/jom/jom_1_1_2.zip", "jom.zip")
             tools.unzip("jom.zip")
 
@@ -170,8 +171,8 @@ class QtConan(ConanFile):
 
         self.output.info('Using MSVC build procedure')
 
+        self.output.info("Attempting to find JOM at %s"%self.source_folder)
         self.build_command = which('jom.exe', [self.source_folder])
-        self.output.info("Attempting to find JOM at %s"%self.build_command)
         if self.build_command:
             build_args = ["-j", str(cpu_count())]
         else:
