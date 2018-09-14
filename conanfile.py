@@ -294,12 +294,17 @@ class QtConan(ConanFile):
         if self.settings.compiler == "Visual Studio":
             vcvars = tools.vcvars_command(self.settings)
             self.run("cd %s && %s && %s install"%(self.source_dir, vcvars, self.build_command))
-        elif self.settings.os == "Linux":
+        elif 'Linux' == self.settings.os:
             self.run("cd %s && make install"%(self.source_dir))
 
             # Set the RPATH of the installed binaries
             # Maybe the RUNPATH should also be set? http://blog.qt.io/blog/2011/10/28/rpath-and-runpath/
             # https://forum.qt.io/topic/59670/how-to-compile-qt-with-relative-runpath-paths/4
+            #
+            # UPDATE: This approach either seems to fail on prestine systems,
+            #         or this simply isn't working.  Perhaps this should be
+            #         removed.  (Going to set LD_LIBRARY_PATH anyways)
+            #         (Matt Sep 2018)
             self.output.info('Modifying RPATH on Qt binaries to use relative paths')
             binaries = glob.glob(os.path.join(self.package_folder, 'bin', '*'))
             for b in binaries:
@@ -330,12 +335,17 @@ class QtConan(ConanFile):
 
         # Put qmake and DLLs in the path
         if self.settings.os == "Windows":
-            self.env_info.path.append(os.path.join(self.package_folder, "bin"))
+            self.env_info.path.append(os.path.join(self.package_folder, 'bin'))
 
         # Make it easier for CMake to find Qt
         self.env_info.CMAKE_PREFIX_PATH.append(self.package_folder)
 
         if 'Linux' == self.settings.os:
+
+            # Attempt to fix the uic LD_LIBRARY_PATH issues that I can't seem
+            # to address through CMake
+            self.env_info.LD_LIBRARY_PATH.append(os.path.join(self.package_folder, 'lib'))
+
             # Populate the pkg-config environment variables
             with tools.pythonpath(self):
                 from platform_helpers import adjustPath, appendPkgConfigPath
