@@ -3,95 +3,98 @@
 
 from conans import ConanFile, tools
 from conans.errors import ConanException
-from distutils.spawn import find_executable
-import os, shutil, re, glob
+import os, shutil, re, glob, configparser
 
 class QtConan(ConanFile):
+
+    def getsubmodules():
+        config = configparser.ConfigParser()
+        config.read('qtmodules.conf')
+        res = {}
+        assert config.sections()
+        for s in config.sections():
+            section = str(s)
+            assert section.startswith("submodule ")
+            assert section.count('"') == 2
+            modulename = section[section.find('"') + 1 : section.rfind('"')]
+            status = str(config.get(section, "status"))
+            if status != "obsolete" and status != "ignore":
+                res[modulename] = {"branch":str(config.get(section, "branch")), "status":status, "path":str(config.get(section, "path"))}
+                if config.has_option(section, "depends"):
+                    res[modulename]["depends"] = [str(i) for i in config.get(section, "depends").split()]
+                else:
+                    res[modulename]["depends"] = []
+        return res
+    submodules = getsubmodules()
+
     name = "qt"
     version = "5.9.6"
     description = "Conan.io package for Qt library."
     url = "https://github.com/bincrafters/conan-qt"
+    homepage = "https://www.qt.io/"
     license = "http://doc.qt.io/qt-5/lgpl.html"
-    exports = ["LICENSE.md"]
+    author = "Matthew Russell <matthew.g.russell@gmail.com>, Bincrafters <bincrafters@gmail.com>"
+    exports = ["LICENSE.md", "qtmodules.conf", "*.diff"]
     exports_sources = ["CMakeLists.txt"]
-    generators = "cmake"
     settings = "os", "arch", "compiler", "build_type"
-    submodules = [
-        "qt3d",
-        "qtactiveqt",
-        "qtandroidextras",
-        "qtcanvas3d",
-        "qtcharts",
-        "qtconnectivity",
-        "qtdatavis3d",
-        "qtdeclarative",
-        "qtdoc",
-        "qtgamepad",
-        "qtgraphicaleffects",
-        "qtimageformats",
-        "qtlocation",
-        "qtmacextras",
-        "qtmultimedia",
-        "qtnetworkauth",
-        "qtpurchasing",
-        "qtquickcontrols",
-        "qtquickcontrols2",
-        "qtremoteobjects",
-        "qtscript",
-        "qtscxml",
-        "qtsensors",
-        "qtserialbus",
-        "qtserialport",
-        "qtspeech",
-        "qtsvg",
-        "qttools",
-        "qttranslations",
-        "qtvirtualkeyboard",
-        "qtwayland",
-        "qtwebchannel",
-        "qtwebengine",
-        "qtwebsockets",
-        "qtwebview",
-        "qtwinextras",
-        "qtx11extras",
-        "qtxmlpatterns",
-    ]
+
     options = dict({
         "shared": [True, False],
-        "fPIC": [True, False],
         "opengl": ["no", "es2", "desktop", "dynamic"],
         "openssl": ["no", "yes", "linked"],
-        }, **{module[2:]: [True,False] for module in submodules}
+        "GUI": [True, False],
+        "widgets": [True, False],
+        "config": "ANY",
+        }, **{module: [True,False] for module in submodules}
     )
     no_copy_source = True
-    default_options = ("shared=True", "fPIC=True", "opengl=no", "openssl=no") + tuple(module[2:] + "=False" for module in submodules)
-
-    requires = 'helpers/0.3@ntc/stable'
+    default_options = ("shared=True", "opengl=desktop", "openssl=no", "GUI=True", "widgets=True", "config=None") + tuple(module + "=False" for module in submodules)
     short_paths = True
     build_policy = "missing"
+    requires = 'helpers/0.3@ntc/stable'
 
-    def build_requirements(self):
-        if tools.os_info.is_linux:
-            pack_names = ["libfontconfig1-dev", "libxrender-dev",
-                          "libxext-dev", "libxfixes-dev", "libxi-dev",
-                          "libgl1-mesa-dev", "libxcb1-dev",
-                          "libx11-xcb-dev",
-                          "libxcb-keysyms1-dev", "libxcb-image0-dev",
-                          "libxcb-shm0-dev", "libx11-dev",
-                          "libxcb-icccm4-dev", "libxcb-sync-dev",
-                          "libxcb-xfixes0-dev", "libxcb-shape0-dev", "libxcb-render-util0-dev",
-                          "libxcb-randr0-dev",
-                          "libxcb-glx0-dev"]
+
+    def system_requirements(self):
+        if self.options.GUI:
+            pack_names = []
+            if tools.os_info.linux_distro == "ubuntu" or tools.os_info.linux_distro == "debian":
+                pack_names = ["libxcb1", "libx11-6"]
+            elif tools.os_info.is_linux and tools.os_info.linux_distro != "opensuse":
+                pack_names = ["libxcb"]
 
             if self.settings.arch == "x86":
                 pack_names = [item+":i386" for item in pack_names]
 
-            installer = tools.SystemPackageTool()
-            try:
-                installer.update() # Update the package database
-                installer.install(" ".join(pack_names)) # Install the package
-            except ConanException:
-                self.output.warn('Could not run build requirements installer.  Requisite packages might be missing.')
+            if pack_names:
+                try:
+                    installer = tools.SystemPackageTool()
+                    installer.install(" ".join(pack_names)) # Install the package
+                except ConanException:
+                    self.output.warn('Could not run system requirements installer.  Requisite packages might be missing.')
+
+
+    def build_requirements(self):
+        if self.options.GUI:
+            pack_names = []
+            if tools.os_info.linux_distro == "ubuntu" or tools.os_info.linux_distro == "debian":
+                pack_names = ["libxcb1-dev", "libx11-dev", "libc6-dev"]
+                if self.options.opengl == "desktop":
+                    pack_names.append("libgl1-mesa-dev")
+            elif tools.os_info.is_linux and tools.os_info.linux_distro not in ["arch", "manjaro"]:
+                pack_names = ["libxcb-devel", "libX11-devel", "glibc-devel"]
+                if self.options.opengl == "desktop":
+                    pack_names.append("mesa-libGL-devel")
+
+            if self.settings.arch == "x86":
+                pack_names = [item+":i386" for item in pack_names]
+
+            if pack_names:
+                installer = tools.SystemPackageTool()
+                try:
+                    installer.update() # Update the package database
+                    installer.install(" ".join(pack_names)) # Install the package
+                except ConanException:
+                    self.output.warn('Could not run build requirements installer.  Requisite packages might be missing.')
 
     def requirements(self):
         if self.options.openssl == "yes":
@@ -102,29 +105,27 @@ class QtConan(ConanFile):
             self.requires("OpenSSL/1.1.0g@conan/stable")
             self.options["OpenSSL"].no_zlib = True
             self.options["OpenSSL"].shared = False
-            
 
-        if tools.os_info.is_linux:
-            pack_names = ["libfontconfig1", "libxrender1",
-                          "libxext6", "libxfixes3", "libxi6",
-                          "libgl1-mesa-dri", "libxcb1",
-                          "libx11-xcb1",
-                          "libxcb-keysyms1", "libxcb-image0",
-                          "libxcb-shm0", "libx11-6",
-                          "libxcb-icccm4", "libxcb-sync1",
-                          "libxcb-xfixes0", "libxcb-shape0", "libxcb-render-util0",
-                          "libxcb-randr0",
-                          "libxcb-glx0"]
+    def configure(self):
+        if self.options.openssl:
+            self.requires("OpenSSL/1.1.0g@conan/stable")
+            self.options["OpenSSL"].no_zlib = True
+        if self.options.widgets == True:
+            self.options.GUI = True
+        if not self.options.GUI:
+            self.options.opengl = "no"
+        if self.settings.os == "Android" and self.options.opengl == "desktop":
+            self.output.error("OpenGL desktop is not supported on Android. Consider using OpenGL es2")
 
-            if self.settings.arch == "x86":
-                pack_names = [item+":i386" for item in pack_names]
-
-            try:
-                installer = tools.SystemPackageTool()
-                installer.update() # Update the package database
-                installer.install(" ".join(pack_names)) # Install the package
-            except ConanException:
-                self.output.warn('Could not run system requirements installer.  Requisite packages might be missing.')
+        assert QtConan.version == QtConan.submodules['qtbase']['branch']
+        def enablemodule(self, module):
+            setattr(self.options, module, True)
+            for req in QtConan.submodules[module]["depends"]:
+                enablemodule(self, req)
+        self.options.qtbase = True
+        for module in QtConan.submodules:
+            if getattr(self.options, module):
+                enablemodule(self, module)
 
     def source(self):
         url = "http://download.qt.io/official_releases/qt/{0}/{1}/single/qt-everywhere-opensource-src-{1}"\
@@ -135,9 +136,80 @@ class QtConan(ConanFile):
             self.run("wget -qO- %s.tar.xz | tar -xJ " % url)
         shutil.move("qt-everywhere-opensource-src-%s" % self.version, "qt5")
 
+        for patch in ["8dd78e8564d8c4249e85653a8119c1dd1a03d659.diff", "cc04651dea4c4678c626cb31b3ec8394426e2b25.diff"]:
+            tools.patch("qt5/qtbase", patch)
+
+    def xplatform(self):
+        if self.settings.os == "Linux":
+            if self.settings.compiler == "gcc":
+                return {"x86": "linux-g++-32",
+                        "armv6": "linux-arm-gnueabi-g++",
+                        "armv7": "linux-arm-gnueabi-g++",
+                        "armv8": "linux-aarch64-gnu-g++"}.get(str(self.settings.arch), "linux-g++")
+            elif self.settings.compiler == "clang":
+                if self.settings.arch == "x86":
+                    return "linux-clang-libc++-32" if self.settings.compiler.libcxx == "libc++" else "linux-clang-32"
+                elif self.settings.arch == "x86_64":
+                    return "linux-clang-libc++" if self.settings.compiler.libcxx == "libc++" else "linux-clang"
+
+        elif self.settings.os == "Macos":
+            return {"clang": "macx-clang",
+                    "gcc": "macx-g++"}.get(str(self.settings.compiler))
+
+        elif self.settings.os == "iOS":
+            if self.settings.compiler == "clang":
+                return "macx-ios-clang"
+
+        elif self.settings.os == "watchOS":
+            if self.settings.compiler == "clang":
+                return "macx-watchos-clang"
+
+        elif self.settings.os == "tvOS":
+            if self.settings.compiler == "clang":
+                return "macx-tvos-clang"
+
+        elif self.settings.os == "Android":
+            return {"clang": "android-clang",
+                    "gcc": "android-g++"}.get(str(self.settings.compiler))
+
+        elif self.settings.os == "Windows":
+            return {"Visual Studio": "win32-msvc",
+                    "gcc": "win32-g++",
+                    "clang": "win32-clang-g++"}.get(str(self.settings.compiler))
+
+        elif self.settings.os == "WindowsStore":
+            if self.settings.compiler == "Visual Studio":
+                return {"14":{  "armv7": "winrt-arm-msvc2015",
+                                "x86": "winrt-x86-msvc2015",
+                                "x86_64": "winrt-x64-msvc2015"},
+                        "15":{  "armv7": "winrt-arm-msvc2017",
+                                "x86": "winrt-x86-msvc2017",
+                                "x86_64": "winrt-x64-msvc2017"}
+                        }.get(str(self.settings.compiler.version)).get(str(self.settings.arch))
+
+        elif self.settings.os == "FreeBSD":
+            return {"clang": "freebsd-clang",
+                    "gcc": "freebsd-g++"}.get(str(self.settings.compiler))
+
+        elif self.settings.os == "SunOS":
+            if self.settings.compiler == "sun-cc":
+                if self.settings.arch == "sparc":
+                    return "solaris-cc-stlport" if self.settings.compiler.libcxx == "libstlport" else "solaris-cc"
+                elif self.settings.arch == "sparcv9":
+                    return "solaris-cc64-stlport" if self.settings.compiler.libcxx == "libstlport" else "solaris-cc64"
+            elif self.settings.compiler == "gcc":
+                return {"sparc": "solaris-g++",
+                        "sparcv9": "solaris-g++-64"}.get(str(self.settings.arch))
+
+        return None
+
     def build(self):
-        args = ["-opensource", "-confirm-license", "-nomake examples", "-nomake tests",
+        args = ["-opensource", "-confirm-license", "-silent", "-nomake examples", "-nomake tests",
                 "-prefix %s" % self.package_folder]
+        if not self.options.GUI:
+            args.append("-no-gui")
+        if not self.options.widgets:
+            args.append("-no-widgets")
         if not self.options.shared:
             args.insert(0, "-static")
             if self.settings.os == "Windows":
@@ -149,8 +221,8 @@ class QtConan(ConanFile):
             args.append("-debug")
         else:
             args.append("-release")
-        for module in self.submodules:
-            if not getattr(self.options, module[2:]):
+        for module in QtConan.submodules:
+            if not getattr(self.options, module) and os.path.isdir(os.path.join(self.source_folder, 'qt5', QtConan.submodules[module]['path'])):
                 args.append("-skip " + module)
 
         # openGL
@@ -167,73 +239,69 @@ class QtConan(ConanFile):
         # openSSL
         if self.options.openssl == "no":
             args += ["-no-openssl"]
-        elif self.options.openssl == "yes":
-            args += ["-openssl"]
         else:
-            args += ["-openssl-linked"]
-        if self.options.openssl != "no":
+            if self.options.openssl == "yes":
+                args += ["-openssl"]
+            else:
+                args += ["-openssl-linked"]
+
             args += ["-I%s" % i for i in self.deps_cpp_info["OpenSSL"].include_paths]
             libs = self.deps_cpp_info["OpenSSL"].libs
             lib_paths = self.deps_cpp_info["OpenSSL"].lib_paths
-            args += ["OPENSSL_LIBS=\"%s %s\"" % (" ".join(["-L"+i for i in lib_paths]), " ".join(["-l"+i for i in libs]))]
-        if self.settings.os == "Windows":
-            if self.settings.compiler == "Visual Studio":
-                self._build_msvc(args)
-            else:
-                self._build_mingw(args)
-        else:
-            self._build_unix(args)
+            os.environ["OPENSSL_LIBS"] = " ".join(["-L"+i for i in lib_paths] + ["-l"+i for i in libs])
 
-    def _build_msvc(self, args):
-        build_command = find_executable("jom.exe")
-        if build_command:
-            build_args = ["-j", str(tools.cpu_count())]
-        else:
-            build_command = "nmake.exe"
-            build_args = []
-        self.output.info("Using '%s %s' to build" % (build_command, " ".join(build_args)))
-
-        
-        vcvars = tools.vcvars_command(self.settings)
-
-        self.run("%s && set" % vcvars)
-        self.run("%s && %s/qt5/configure %s"
-                % (vcvars, self.source_folder, " ".join(args)))
-        self.run("%s && %s %s"
-                % (vcvars, build_command, " ".join(build_args)))
-        self.run("%s && %s install" % (vcvars, build_command))
-
-    def _build_mingw(self, args):
-        # Workaround for configure using clang first if in the path
-        new_path = []
-        for item in os.environ['PATH'].split(';'):
-            if item != 'C:\\Program Files\\LLVM\\bin':
-                new_path.append(item)
-        os.environ['PATH'] = ';'.join(new_path)
-        # end workaround
-        args += ["-platform win32-g++"]
-
-        with tools.environment_append({"MAKEFLAGS":"-j %d" % tools.cpu_count()}):
-            self.output.info("Using '%d' threads" % tools.cpu_count())
-            self.run("%s/qt5/configure.bat %s" % (self.source_folder, " ".join(args)))
-            self.run("mingw32-make")
-            self.run("mingw32-make install")
-
-    def _build_unix(self, args):
         if self.settings.os == "Linux":
-            args += ["-silent", "-xcb"]
-            if self.settings.arch == "x86":
-                args += ["-platform linux-g++-32"]
-        else:
-            args += ["-silent", "-no-framework"]
-            if self.settings.arch == "x86":
-                args += ["-platform macx-clang-32"]
+            if self.options.GUI:
+                args.append("-qt-xcb")
+        elif self.settings.os == "Macos":
+            args += ["-no-framework"]
+        elif self.settings.os == "Android":
+            args += ["-android-ndk-platform android-%s" % self.settings.os.api_level]
+            args += ["-android-arch %s" % {"armv6": "armeabi",
+                                           "armv7": "armeabi-v7a",
+                                           "armv8": "arm64-v8a",
+                                           "x86": "x86",
+                                           "x86_64": "x86_64",
+                                           "mips": "mips",
+                                           "mips64": "mips64"}.get(str(self.settings.arch))]
+            # args += ["-android-toolchain-version %s" % self.settings.compiler.version]
 
-        with tools.environment_append({"MAKEFLAGS":"-j %d" % tools.cpu_count()}):
-            self.output.info("Using '%d' threads" % tools.cpu_count())
-            self.run("%s/qt5/configure %s" % (self.source_folder, " ".join(args)))
-            self.run("make")
-            self.run("make install")
+        xplatform_val = self.xplatform()
+        if xplatform_val:
+            args += ["-xplatform %s" % xplatform_val]
+        else:
+            self.output.warn("host not supported: %s %s %s %s" % (self.settings.os, self.settings.compiler, self.settings.compiler.version, self.settings.arch))
+
+        if self.options.config:
+            args.append(str(self.options.config))
+
+        def _build(self, make, args):
+            with tools.environment_append({"MAKEFLAGS":"j%d" % tools.cpu_count()}):
+                self.run("%s/qt5/configure %s" % (self.source_folder, " ".join(args)))
+                self.run(make)
+                self.run("%s install" % make)
+
+        if tools.os_info.is_windows:
+            if self.settings.compiler == "Visual Studio":
+                with tools.vcvars(self.settings):
+                    _build(self, "jom", args)
+            else:
+                # Workaround for configure using clang first if in the path
+                new_path = []
+                for item in os.environ['PATH'].split(';'):
+                    if item != 'C:\\Program Files\\LLVM\\bin':
+                        new_path.append(item)
+                os.environ['PATH'] = ';'.join(new_path)
+                # end workaround
+                _build(self, "mingw32-make", args)
+        else:
+            _build(self, "make", args)
+
+        with open('qtbase/bin/qt.conf', 'w') as f:
+            f.write('[Paths]\nPrefix = ..')
+
+    def package(self):
+        self.copy("bin/qt.conf", src="qtbase")
 
     def package_info(self):
         if self.settings.os == "Windows":
