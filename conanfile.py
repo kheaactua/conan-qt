@@ -182,15 +182,49 @@ class QtConan(ConanFile):
 
         env = {}
 
+        def createPlatform(
+            src_year='2012', src_version='1700', src_nom_version='11.0',
+            dst_year='2017', dst_version='1915', dst_nom_version='15.8',
+        ):
+            """
+            Function to create the proper platform.  Note, the version number
+            can be sourced from
+            https://en.wikipedia.org/wiki/Microsoft_Visual_C%2B%2B .
+
+            Additionally, the compiler [minor] version isn't provided to the
+            conan script, so right now, 1915 or whatever is simply a guess
+            that'll be wrong after the next VS2017 update.
+            """
+
+            platform_dir_base = os.path.join(self.build_folder, 'qtbase', 'mkspecs')
+            dst_platform_name = 'win32-msvc%s'%dst_version
+            with tools.chdir(platform_dir_base):
+                if os.path.exists(dst_platform_name):
+                    self.output.warn('Destination platform "%s" already exists, skipping...'%dst_platform_name)
+                else:
+                    shutil.copy(src='win32-msvc%s'%src_version, dst=dst_platform_name):
+                    with tools.chdir(dst_platform_name):
+                        tools.replace_in_file(file_path='qmake.conf', search=src_version,     replace=dst_version)
+                        tools.replace_in_file(file_path='qmake.conf', search=src_year,        replace=dst_year)
+                        tools.replace_in_file(file_path='qmake.conf', search=src_nom_version, replace=dst_nom_version)
+
         # it seems not enough to set the vcvars for older versions
         if self.settings.compiler == "Visual Studio":
             args.append("-mp")
             if self.settings.compiler.version == "15":
                 env.update({'QMAKESPEC': 'win32-msvc2017'})
                 args += ["-platform win32-msvc2017"]
+                createPlatform(
+                    src_year='2012', src_version='1700', src_nom_version='11.0',
+                    dst_year='2017', dst_version='1915', dst_nom_version='15.8', # TODO 1915 and 15.8 might be wrong!  input these someehow
+                )
             if self.settings.compiler.version == "14":
                 env.update({'QMAKESPEC': 'win32-msvc2015'})
                 args += ["-platform win32-msvc2015"]
+                createPlatform(
+                    src_year='2012', src_version='1700', src_nom_version='11.0',
+                    dst_year='2015', dst_version='1900', dst_nom_version='14.0', # TODO 1915 and 15.8 might be wrong!  input these someehow
+                )
             if self.settings.compiler.version == "12":
                 env.update({'QMAKESPEC': 'win32-msvc2013'})
                 args += ["-platform win32-msvc2013"]
