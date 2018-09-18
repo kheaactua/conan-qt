@@ -202,7 +202,7 @@ class QtConan(ConanFile):
                 if os.path.exists(dst_platform_name):
                     self.output.warn('Destination platform "%s" already exists, skipping...'%dst_platform_name)
                 else:
-                    shutil.copy(src='win32-msvc%s'%src_version, dst=dst_platform_name):
+                    shutil.copy(src='win32-msvc%s'%src_version, dst=dst_platform_name)
                     with tools.chdir(dst_platform_name):
                         tools.replace_in_file(file_path='qmake.conf', search=src_version,     replace=dst_version)
                         tools.replace_in_file(file_path='qmake.conf', search=src_year,        replace=dst_year)
