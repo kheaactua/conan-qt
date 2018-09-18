@@ -216,14 +216,14 @@ class QtConan(ConanFile):
                 args += ["-platform win32-msvc2017"]
                 createPlatform(
                     src_year='2012', src_version='1700', src_nom_version='11.0',
-                    dst_year='2017', dst_version='1915', dst_nom_version='15.8', # TODO 1915 and 15.8 might be wrong!  input these someehow
+                    dst_year='2017', dst_version='1915', dst_nom_version='15.8', # TODO 1915 and 15.8 might be wrong!  Input these somehow
                 )
             if self.settings.compiler.version == "14":
                 env.update({'QMAKESPEC': 'win32-msvc2015'})
                 args += ["-platform win32-msvc2015"]
                 createPlatform(
                     src_year='2012', src_version='1700', src_nom_version='11.0',
-                    dst_year='2015', dst_version='1900', dst_nom_version='14.0', # TODO 1915 and 15.8 might be wrong!  input these someehow
+                    dst_year='2015', dst_version='1900', dst_nom_version='14.0', # TODO 1915 and 15.8 might be wrong!  Input these somehow
                 )
             if self.settings.compiler.version == "12":
                 env.update({'QMAKESPEC': 'win32-msvc2013'})
