@@ -346,6 +346,10 @@ class QtConan(ConanFile):
             # to address through CMake
             self.env_info.LD_LIBRARY_PATH.append(os.path.join(self.package_folder, 'lib'))
 
+            # Qt appears to hard code the font path which leads to run time
+            # errors
+            self.env_info.QT_QPA_FONTDIR = os.path.join(self.package_folder, 'lib', 'fonts')
+
             # Populate the pkg-config environment variables
             with tools.pythonpath(self):
                 from platform_helpers import adjustPath, appendPkgConfigPath
