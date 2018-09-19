@@ -96,19 +96,9 @@ class QtConan(ConanFile):
                 except ConanException:
                     self.output.warn('Could not run build requirements installer.  Requisite packages might be missing.')
 
-    def requirements(self):
-        if self.options.openssl == "yes":
-            self.requires("OpenSSL/1.1.0g@conan/stable")
-            self.options["OpenSSL"].no_zlib = True
-            self.options["OpenSSL"].shared = True
-        if self.options.openssl == "linked":
-            self.requires("OpenSSL/1.1.0g@conan/stable")
-            self.options["OpenSSL"].no_zlib = True
-            self.options["OpenSSL"].shared = False
-
     def configure(self):
         if self.options.openssl:
-            self.requires("OpenSSL/1.1.0g@conan/stable")
+            self.requires("OpenSSL/1.1.0i@conan/stable")
             self.options["OpenSSL"].no_zlib = True
         if self.options.widgets == True:
             self.options.GUI = True
