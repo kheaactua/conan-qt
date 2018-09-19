@@ -130,10 +130,20 @@ class QtConan(ConanFile):
     def source(self):
         url = "http://download.qt.io/official_releases/qt/{0}/{1}/single/qt-everywhere-opensource-src-{1}"\
             .format(self.version[:self.version.rfind('.')], self.version)
-        if tools.os_info.is_windows:
-            tools.get("%s.zip" % url)
+        url = url + (".zip" if tools.os_info.is_windows else ".tar.xz")
+
+        from source_cache import copyFromCache
+        archive = os.path.basename(url)
+        if copyFromCache(archive):
+            if tools.os_info.is_windows:
+                tools.unzip(archive)
+            else:
+                self.run("tar -xJf %s" % archive)
         else:
-            self.run("wget -qO- %s.tar.xz | tar -xJ " % url)
+            if tools.os_info.is_windows:
+                tools.get(url)
+            else:
+                self.run("wget -qO- %s | tar -xJ " % url)
         shutil.move("qt-everywhere-opensource-src-%s" % self.version, "qt5")
 
         for patch in ["8dd78e8564d8c4249e85653a8119c1dd1a03d659.diff", "cc04651dea4c4678c626cb31b3ec8394426e2b25.diff"]:
