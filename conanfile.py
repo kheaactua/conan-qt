@@ -86,46 +86,36 @@ class QtConan(ConanFile):
 
         (release, major) = [int(i) for i in self.version.split('.')[:2]]
 
-        if 'Windows' == self.settings.os:
+        if tools.os_info.is_windows:
             self.output.info('Downloading jom')
-            tools.download("https://download.qt.io/official_releases/jom/jom_1_1_2.zip", "jom.zip")
-            tools.unzip("jom.zip")
+            tools.download('https://download.qt.io/official_releases/jom/jom_1_1_2.zip', 'jom.zip')
+            tools.unzip('jom.zip')
 
-        # Debugging flag that should be removed.
-        use_local = False
 
-        if use_local:
-            download_url = os.path.join(r'C:\\', 'tmp', 'qt-everywhere-opensource-src-{self.version}')
-            # This still takes forever...
-            self.run(f"robocopy {download_url} {self.source_dir} /s /e")
-        else:
-            ext = 'tar.xz' if self.settings.os == 'Linux' else 'zip'
+        ext = 'tar.xz' if self.settings.os == 'Linux' else 'zip'
+        url = f'http://download.qt.io/archive/qt/{release}.{major}/{self.version}/single/qt-everywhere-opensource-src-{self.version}.{ext}'
 
-            if major >= 9:
-                download_url = f'https://download.qt.io/official_releases/qt/{release}.{major}/{self.version}/single/qt-everywhere-opensource-src-{self.version}.{ext}'
-            else:
-                download_url = f'http://download.qt.io/archive/qt/{release}.{major}/{self.version}/single/qt-everywhere-opensource-src-{self.version}.{ext}'
-
-            archive = os.path.basename(download_url)
-            self.output.info("Downloading %s"%download_url)
-            tools.download(url=download_url, filename=archive)
+        from source_cache import copyFromCache
+        archive = os.path.basename(url)
+        if not copyFromCache(archive):
+            self.output.info('Downloading %s'%url)
+            tools.download(url=url, filename=archive)
 
             # Check against our cached md5 hashes.
             hash_file = os.path.join('md5s', f'md5sums-{self.version}.txt')
             if not os.path.exists(hash_file):
-                raise ConanException(f'Cannot find cached md5sums for Qt {self.version}.  Please download the md5 hashes from %s/md5sums.txt as md5sums-{self.version}.txt and place them in the md5s directory with this recipe.'%(os.path.dirname(download_url)))
+                raise ConanException(f'Cannot find cached md5sums for Qt {self.version}.  Please download the md5 hashes from %s/md5sums.txt as md5sums-{self.version}.txt and place them in the md5s directory with this recipe.'%(os.path.dirname(url)))
             platform_helpers.check_hash(file_path=archive, hash_file=hash_file, fnc=tools.check_md5)
 
-            if ext == 'tar.xz':
-                self.run(f'tar xf {archive}')
-            else:
-                tools.unzip(archive)
-            shutil.move(f'qt-everywhere-opensource-src-{self.version}', self.source_dir)
-            os.unlink(archive)
+        if tools.os_info.is_windows:
+            tools.unzip(archive)
+        else:
+            self.run('tar -xJf %s'%archive)
+
+        shutil.move(f'qt-everywhere-opensource-src-{self.version}', self.source_dir)
+        os.unlink(archive)
 
     def build(self):
-        major = int(self.version.split('.')[1])
-
         args = [
             '-opensource',
             '-confirm-license',
@@ -145,21 +135,12 @@ class QtConan(ConanFile):
             # "-make multimedia -make multimediawidgets",
         ]
         if not self.options.shared:
-            args.insert(0, "-static")
-        if 'Linux' == self.settings.os:
+            args.insert(0, '-static')
+        if tools.os_info.is_linux:
             args.append('-dbus')
 
-        if major >= 9:
-            args.append('-skip webengine')
-            args.append('-skip charts')
-            args.append('-skip datavis3d')
-            args.append('-skip speech')
-            args.append('-skip purchasing')
-            args.append('-skip remoteobjects')
-            args.append('-skip webview')
-
-        if self.settings.os == "Windows":
-            if self.settings.compiler == "Visual Studio":
+        if tools.os_info.is_windows:
+            if self.settings.compiler == 'Visual Studio':
                 self._build_msvc(args)
             else:
                 self._build_mingw(args)
@@ -174,9 +155,9 @@ class QtConan(ConanFile):
         self.output.info("Attempting to find JOM at %s"%self.source_folder)
         self.build_command = which('jom.exe', [self.source_folder])
         if self.build_command:
-            build_args = ["-j", str(cpu_count())]
+            build_args = ['-j', str(cpu_count())]
         else:
-            self.build_command = "nmake.exe"
+            self.build_command = 'nmake.exe'
             build_args = []
         self.output.info("Using '%s %s' to build"%(self.build_command, " ".join(build_args)))
 
