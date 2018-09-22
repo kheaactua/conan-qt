@@ -21,9 +21,9 @@ class QtConan(ConanFile):
     url         = 'https://www.qt.io/'
     settings    = 'os', 'arch', 'compiler', 'build_type'
     options = {
-        'shared':            [True, False],
-        'opengl':            ['desktop', 'dynamic'],
-        'openssl':           ['no', 'yes', 'linked'],
+        'shared':  [True, False],
+        'opengl':  ['desktop', 'dynamic'],
+        'openssl': ['no', 'yes', 'linked'],
     }
     default_options = (
         'shared=True',
@@ -177,13 +177,14 @@ class QtConan(ConanFile):
             that'll be wrong after the next VS2017 update.
             """
 
-            platform_dir_base = os.path.join(self.build_folder, 'qtbase', 'mkspecs')
-            dst_platform_name = 'win32-msvc%s'%dst_version
+            platform_dir_base = os.path.join(self.build_folder, self.source_dir, 'qtbase', 'mkspecs')
+            dst_platform_name = 'win32-msvc%s'%dst_year
             with tools.chdir(platform_dir_base):
                 if os.path.exists(dst_platform_name):
                     self.output.warn('Destination platform "%s" already exists, skipping...'%dst_platform_name)
                 else:
-                    shutil.copy(src='win32-msvc%s'%src_version, dst=dst_platform_name)
+                    self.output.info('Copying %s to %s'%('win32-msvc%s'%src_version, dst_platform_name))
+                    shutil.copytree(src='win32-msvc%s'%src_year, dst=dst_platform_name)
                     with tools.chdir(dst_platform_name):
                         tools.replace_in_file(file_path='qmake.conf', search=src_version,     replace=dst_version)
                         tools.replace_in_file(file_path='qmake.conf', search=src_year,        replace=dst_year)
@@ -204,7 +205,7 @@ class QtConan(ConanFile):
                 args += ["-platform win32-msvc2015"]
                 createPlatform(
                     src_year='2012', src_version='1700', src_nom_version='11.0',
-                    dst_year='2015', dst_version='1900', dst_nom_version='14.0', # TODO 1915 and 15.8 might be wrong!  Input these somehow
+                    dst_year='2015', dst_version='1900', dst_nom_version='14.0',
                 )
             if self.settings.compiler.version == "12":
                 env.update({'QMAKESPEC': 'win32-msvc2013'})
@@ -242,11 +243,11 @@ class QtConan(ConanFile):
             else:
                 args += ["-openssl-linked"]
 
-            self.run("cd %s && %s && configure %s"
-                     %(self.source_dir, vcvars, ' '.join(args)))
-            self.run("cd %s && %s && %s %s"
-                     %(self.source_dir, vcvars, self.build_command, ' '.join(build_args)))
-            # self.run("cd %s && %s && %s install" % (self.source_dir, vcvars, build_command))
+            with tools.chdir(self.source_dir):
+                self.run("%s && configure %s"
+                         %(vcvars, ' '.join(args)))
+                self.run("%s && %s %s"
+                         %(vcvars, self.build_command, ' '.join(build_args)))
     # }}}
 
     def _build_mingw(self, args): # {{{
