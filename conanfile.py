@@ -2,8 +2,26 @@
 # -*- coding: utf-8 -*-
 
 from conans import ConanFile, tools
+from conans.model import Generator
 from conans.errors import ConanException
-import os, shutil, re, glob, configparser
+
+import os
+import sys
+import shutil
+import configparser
+import re
+import glob
+
+class qt(Generator):
+    """ Not used as far as I can tell """
+
+    @property
+    def filename(self):
+        return "qt.conf"
+
+    @property
+    def content(self):
+        return "[Paths]\nPrefix = %s" % self.conanfile.deps_cpp_info["qt"].rootpath.replace("\\", "/")
 
 class QtConan(ConanFile):
 
@@ -35,70 +53,59 @@ class QtConan(ConanFile):
     license = "http://doc.qt.io/qt-5/lgpl.html"
     author = "Matthew Russell <matthew.g.russell@gmail.com>, Bincrafters <bincrafters@gmail.com>"
     exports = ["LICENSE.md", "qtmodules.conf", "*.diff"]
-    exports_sources = ["CMakeLists.txt"]
     settings = "os", "arch", "compiler", "build_type"
 
     options = dict({
         "shared": [True, False],
+        "commercial": [True, False],
         "opengl": ["no", "es2", "desktop", "dynamic"],
-        "openssl": ["no", "yes", "linked"],
+        "openssl": [True, False],
         "GUI": [True, False],
         "widgets": [True, False],
         "config": "ANY",
         }, **{module: [True,False] for module in submodules}
     )
     no_copy_source = True
-    default_options = ("shared=True", "opengl=desktop", "openssl=no", "GUI=True", "widgets=True", "config=None") + tuple(module + "=False" for module in submodules)
+    default_options = ("shared=True", "commercial=False", "opengl=desktop", "openssl=False", "GUI=True", "widgets=True", "config=None") + tuple(module + "=False" for module in submodules)
     short_paths = True
     build_policy = "missing"
     requires = 'helpers/0.3@ntc/stable'
 
-
-    def system_requirements(self):
-        if self.options.GUI:
-            pack_names = []
-            if tools.os_info.linux_distro == "ubuntu" or tools.os_info.linux_distro == "debian":
-                pack_names = ["libxcb1", "libx11-6"]
-            elif tools.os_info.is_linux and tools.os_info.linux_distro != "opensuse":
-                pack_names = ["libxcb"]
-
+    def system_package_architecture(self):
+        if tools.os_info.with_apt:
             if self.settings.arch == "x86":
-                pack_names = [item+":i386" for item in pack_names]
+                return ':i386'
+            elif self.settings.arch == "x86_64":
+                return ':amd64'
 
-            if pack_names:
-                try:
-                    installer = tools.SystemPackageTool()
-                    installer.install(" ".join(pack_names)) # Install the package
-                except ConanException:
-                    self.output.warn('Could not run system requirements installer.  Requisite packages might be missing.')
-
+        if tools.os_info.with_yum:
+            if self.settings.arch == "x86":
+                return '.i686'
+            elif self.settings.arch == 'x86_64':
+                return '.x86_64'
+        return ""
 
     def build_requirements(self):
         if self.options.GUI:
             pack_names = []
-            if tools.os_info.linux_distro == "ubuntu" or tools.os_info.linux_distro == "debian":
+            if tools.os_info.with_apt:
                 pack_names = ["libxcb1-dev", "libx11-dev", "libc6-dev"]
-                if self.options.opengl == "desktop":
-                    pack_names.append("libgl1-mesa-dev")
-            elif tools.os_info.is_linux and tools.os_info.linux_distro not in ["arch", "manjaro"]:
+            elif tools.os_info.is_linux and not tools.os_info.with_pacman:
                 pack_names = ["libxcb-devel", "libX11-devel", "glibc-devel"]
-                if self.options.opengl == "desktop":
-                    pack_names.append("mesa-libGL-devel")
-
-            if self.settings.arch == "x86":
-                pack_names = [item+":i386" for item in pack_names]
 
             if pack_names:
                 installer = tools.SystemPackageTool()
                 try:
-                    installer.update() # Update the package database
-                    installer.install(" ".join(pack_names)) # Install the package
+                    installer.install(" ".join([item + self.system_package_architecture() for item in pack_names]))
                 except ConanException:
-                    self.output.warn('Could not run build requirements installer.  Requisite packages might be missing.')
+                    self.output.warn('Could not install build requirements installer.  Requisite packages might be missing.')
+
+        if tools.os_info.is_windows and self.settings.compiler == "Visual Studio":
+            self.build_requires("jom_installer/1.1.2@bincrafters/stable")
 
     def configure(self):
         if self.options.openssl:
-            self.requires("OpenSSL/1.1.0i@conan/stable")
+            self.requires("OpenSSL/1.1.0g@conan/stable")
             self.options["OpenSSL"].no_zlib = True
         if self.options.widgets == True:
             self.options.GUI = True
@@ -116,6 +123,31 @@ class QtConan(ConanFile):
         for module in QtConan.submodules:
             if getattr(self.options, module):
                 enablemodule(self, module)
+
+    def system_requirements(self):
+        if self.options.GUI:
+            pack_names = []
+            if tools.os_info.is_linux:
+                if tools.os_info.with_apt:
+                    pack_names = ["libxcb1", "libx11-6"]
+                    if self.options.opengl == "desktop":
+                        pack_names.append("libgl1-mesa-dev")
+                else:
+                    if not tools.os_info.linux_distro.startswith("opensuse"):
+                        pack_names = ["libxcb"]
+                    if not tools.os_info.with_pacman:
+                        if self.options.opengl == "desktop":
+                            if tools.os_info.linux_distro.startswith("opensuse"):
+                                pack_names.append("Mesa-libGL-devel")
+                            else:
+                                pack_names.append("mesa-libGL-devel")
+
+            if pack_names:
+                installer = tools.SystemPackageTool()
+                try:
+                    installer.install(" ".join([item + self.system_package_architecture() for item in pack_names]))
+                except ConanException:
+                    self.output.warn('Could not install system requirements installer.  Requisite packages might be missing.')
 
     def source(self):
         url = "http://download.qt.io/official_releases/qt/{0}/{1}/single/qt-everywhere-opensource-src-{1}"\
@@ -204,8 +236,12 @@ class QtConan(ConanFile):
         return None
 
     def build(self):
-        args = ["-opensource", "-confirm-license", "-silent", "-nomake examples", "-nomake tests",
+        args = ["-confirm-license", "-silent", "-nomake examples", "-nomake tests",
                 "-prefix %s" % self.package_folder]
+        if self.options.commercial:
+            args.append("-commercial")
+        else:
+            args.append("-opensource")
         if not self.options.GUI:
             args.append("-no-gui")
         if not self.options.widgets:
@@ -219,6 +255,12 @@ class QtConan(ConanFile):
             args.insert(0, "-shared")
         if self.settings.build_type == "Debug":
             args.append("-debug")
+        elif self.settings.build_type == "RelWithDebInfo":
+            args.append("-release")
+            args.append("-force-debug-info")
+        elif self.settings.build_type == "MinSizeRel":
+            args.append("-release")
+            args.append("-optimize-size")
         else:
             args.append("-release")
         for module in QtConan.submodules:
@@ -237,15 +279,14 @@ class QtConan(ConanFile):
                 args += ["-opengl dynamic"]
 
         # openSSL
-        if self.options.openssl == "no":
+        if not self.options.openssl:
             args += ["-no-openssl"]
         else:
-            if self.options.openssl == "yes":
-                args += ["-openssl"]
-            else:
+            if self.options["OpenSSL"].shared:
                 args += ["-openssl-linked"]
-
-            args += ["-I%s" % i for i in self.deps_cpp_info["OpenSSL"].include_paths]
+            else:
+                args += ["-openssl"]
+            args += ["-I %s" % i for i in self.deps_cpp_info["OpenSSL"].include_paths]
             libs = self.deps_cpp_info["OpenSSL"].libs
             lib_paths = self.deps_cpp_info["OpenSSL"].lib_paths
             os.environ["OPENSSL_LIBS"] = " ".join(["-L"+i for i in lib_paths] + ["-l"+i for i in libs])
@@ -275,6 +316,8 @@ class QtConan(ConanFile):
         if self.options.config:
             args.append(str(self.options.config))
 
+        args.append("-qt-zlib")
+
         def _build(self, make, args):
             with tools.environment_append({"MAKEFLAGS":"j%d" % tools.cpu_count()}):
                 self.run("%s/qt5/configure %s" % (self.source_folder, " ".join(args)))
@@ -297,7 +340,7 @@ class QtConan(ConanFile):
         else:
             _build(self, "make", args)
 
-        with open('qtbase/bin/qt.conf', 'w') as f:
+        with open('qtbase/bin/qt.conf', 'w') as f: 
             f.write('[Paths]\nPrefix = ..')
 
     def package(self):
@@ -305,7 +348,7 @@ class QtConan(ConanFile):
 
     def package_info(self):
         if self.settings.os == "Windows":
-            self.env_info.path.append(os.path.join(self.package_folder, 'bin'))
+            self.env_info.path.append(os.path.join(self.package_folder, "bin"))
         self.env_info.CMAKE_PREFIX_PATH.append(self.package_folder)
 
         if 'Linux' == self.settings.os:
@@ -332,20 +375,5 @@ class QtConan(ConanFile):
                     setattr(self.env_info, 'PKG_CONFIG_%s_PREFIX'%p_name, adjustPath(self.package_folder))
 
                 appendPkgConfigPath(adjustPath(pkg_config_path), self.env_info)
-
-        # Insert a qt.conf file into the bin folder to allow the Qt executables
-        # to find the plugins directory, otherwise calling exectuables such as
-        # qmlplugindump will throw errors such as "plugin cannot be loaded for
-        # module the specified module could not be found"
-
-        conf_file = os.path.join(self.package_folder, 'bin', 'qt.conf')
-
-        with tools.pythonpath(self):
-            from platform_helpers import adjustPath, appendPkgConfigPath
-            conf_contents = '''[Paths]
-Plugins = %s/plugins
-'''%(self.package_folder)
-        with open(conf_file, 'w') as f: f.write(conf_contents)
-        self.output.info('Created %s pointing at the local plugin directory'%conf_file)
 
 # vim: ts=4 sw=4 expandtab ffs=unix ft=python foldmethod=marker :

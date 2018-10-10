@@ -2,29 +2,72 @@
 # -*- coding: utf-8 -*-
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 
-from conans import ConanFile, CMake, tools, RunEnvironment
+from conans import ConanFile, CMake, tools
 import os
+import shutil
 
 
 class TestPackageConan(ConanFile):
     settings = "os", "compiler", "build_type", "arch"
-    generators = "cmake"
+    generators = "cmake", "qt"
+
+    def build_requirements(self):
+        if tools.os_info.is_windows and self.settings.compiler == "Visual Studio":
+            self.build_requires("jom_installer/1.1.2@bincrafters/stable")
+
+    def build_with_qmake(self):
+        tools.mkdir("qmake_folder")
+        with tools.chdir("qmake_folder"):
+            self.output.info("Building with qmake")
+            def qmakeBuild(self):
+                self.run("qmake %s" % self.source_folder, run_environment=True)
+                if tools.os_info.is_windows:
+                    if self.settings.compiler == "Visual Studio":
+                        self.run("jom")
+                    else:
+                        self.run("mingw32-make")
+                else:
+                    self.run("make")
+
+            if self.settings.compiler == "Visual Studio":
+                with tools.vcvars(self.settings):
+                    qmakeBuild(self)
+            else:
+                qmakeBuild(self)
+
+    def build_with_cmake(self):
+        if not self.options["Qt"].shared:
+            self.output.info("disabled cmake test with static Qt, because of https://bugreports.qt.io/browse/QTBUG-38913")
+        else:
+            self.output.info("Building with CMake")
+            cmake = CMake(self)
+            cmake.configure()
+            cmake.build()
 
     def build(self):
-        cmake = CMake(self)
-        cmake.configure()
-        cmake.build()
+        self.build_with_qmake()
+        self.build_with_cmake()
+
+    def test_with_qmake(self):
+        self.output.info("Testing qmake")
+        if tools.os_info.is_windows:
+            bin_path = str(self.settings.build_type).lower()
+        elif tools.os_info.is_linux:
+            bin_path = "."
+        else:
+            bin_path = os.path.join("test_package.app", "Contents", "MacOS")
+        bin_path = os.path.join("qmake_folder", bin_path)
+        shutil.copy("qt.conf", bin_path)
+        self.run(os.path.join(bin_path, "test_package"))
+
+    def test_with_cmake(self):
+        if not self.options["Qt"].shared:
+            self.output.info("disabled cmake test with static Qt, because of https://bugreports.qt.io/browse/QTBUG-38913")
+        else:
+            self.output.info("Testing CMake")
+            self.run(os.path.join("bin", "test_package"))
 
     def test(self):
-        with tools.environment_append(RunEnvironment(self).vars):
-            bin_path = os.path.join("bin", "test_package")
-            if self.settings.os == "Windows":
-                if self.settings.compiler == "gcc":
-                    self.run("echo %PATH%")
-                    self.run("ldd %s" % bin_path)
-                    self.run("cd bin && ldd test_package")
-                self.run(bin_path)
-            elif self.settings.os == "Macos":
-                self.run("DYLD_LIBRARY_PATH=%s %s" % (os.environ.get('DYLD_LIBRARY_PATH', ''), bin_path))
-            else:
-                self.run("LD_LIBRARY_PATH=%s %s" % (os.environ.get('LD_LIBRARY_PATH', ''), bin_path))
+        if not tools.cross_building(self.settings):
+            self.test_with_qmake()
+            self.test_with_cmake()
