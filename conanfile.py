@@ -354,6 +354,9 @@ class QtConan(ConanFile):
         # Specify plugin path
         self.env_info.QT_QPA_PLATFORM_PLUGIN_PATH = os.path.join(self.package_folder, 'plugins', 'platforms')
 
+        # Potentially set QT_PLUGIN_PATH, QML_IMPORT_PATH, QML2_IMPORT_PATH
+        # https://github.com/pyqt/python-qt5/wiki/Qt-Environment-Variable-Reference#qt-qpa-platform-plugin-path
+
         if tools.os_info.is_linux:
 
             # Attempt to fix the uic LD_LIBRARY_PATH issues that I can't seem
