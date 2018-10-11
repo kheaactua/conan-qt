@@ -331,22 +331,22 @@ class QtConan(ConanFile):
         elif 'Linux' == self.settings.os:
             self.run("cd %s && make install"%(self.source_dir))
 
-            # Set the RPATH of the installed binaries
-            # Maybe the RUNPATH should also be set? http://blog.qt.io/blog/2011/10/28/rpath-and-runpath/
-            # https://forum.qt.io/topic/59670/how-to-compile-qt-with-relative-runpath-paths/4
-            #
-            # UPDATE: This approach either seems to fail on prestine systems,
-            #         or this simply isn't working.  Perhaps this should be
-            #         removed.  (Going to set LD_LIBRARY_PATH anyways)
-            #         (Matt Sep 2018)
-            self.output.info('Modifying RPATH on Qt binaries to use relative paths')
-            binaries = glob.glob(os.path.join(self.package_folder, 'bin', '*'))
-            for b in binaries:
-                try:
-                    # self.output.info(f"chrpath -r '$OGIGIN/../lib' {b}")
-                    self.run(f"chrpath -r '$ORIGIN/../lib' {b}")
-                except ConanException:
-                    self.output.warn(f'Could not modify rpath on {b}')
+            # # Set the RPATH of the installed binaries
+            # # Maybe the RUNPATH should also be set? http://blog.qt.io/blog/2011/10/28/rpath-and-runpath/
+            # # https://forum.qt.io/topic/59670/how-to-compile-qt-with-relative-runpath-paths/4
+            # #
+            # # UPDATE: This approach either seems to fail on prestine systems,
+            # #         or this simply isn't working.  Perhaps this should be
+            # #         removed.  (Going to set LD_LIBRARY_PATH anyways)
+            # #         (Matt Sep 2018)
+            # self.output.info('Modifying RPATH on Qt binaries to use relative paths')
+            # binaries = glob.glob(os.path.join(self.package_folder, 'bin', '*'))
+            # for b in binaries:
+            #     try:
+            #         # self.output.info(f"chrpath -r '$OGIGIN/../lib' {b}")
+            #         self.run(f"chrpath -r '$ORIGIN/../lib' {b}")
+            #     except ConanException:
+            #         self.output.warn(f'Could not modify rpath on {b}')
 
     def package_info(self):
         libs = [
