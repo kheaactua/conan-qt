@@ -184,9 +184,12 @@ class QtConan(ConanFile):
 
         def createPlatform(
             src_year='2012', src_version='1700', src_nom_version='11.0',
-            dst_year='2017', dst_version='1915', dst_nom_version='15.8',
+            dst_year='2015', dst_version='1900', dst_nom_version='14.0',
         ):
             """
+            Update: This was originally written for VS2017, but it turns out
+                    that that's not possible, so this won't likely be used.
+
             Function to create the proper platform.  Note, the version number
             can be sourced from
             https://en.wikipedia.org/wiki/Microsoft_Visual_C%2B%2B .
@@ -212,18 +215,13 @@ class QtConan(ConanFile):
         if self.settings.compiler == "Visual Studio":
             args.append("-mp")
             if self.settings.compiler.version == "15":
-                env.update({'QMAKESPEC': 'win32-msvc2017'})
-                args += ["-platform win32-msvc2017"]
-                createPlatform(
-                    src_year='2012', src_version='1700', src_nom_version='11.0',
-                    dst_year='2017', dst_version='1915', dst_nom_version='15.8', # TODO 1915 and 15.8 might be wrong!  Input these somehow
-                )
+                raise ConanException('Qt 5.3.2 cannot be build with MSVC 2013')
             if self.settings.compiler.version == "14":
                 env.update({'QMAKESPEC': 'win32-msvc2015'})
                 args += ["-platform win32-msvc2015"]
                 createPlatform(
                     src_year='2012', src_version='1700', src_nom_version='11.0',
-                    dst_year='2015', dst_version='1900', dst_nom_version='14.0', # TODO 1915 and 15.8 might be wrong!  Input these somehow
+                    dst_year='2015', dst_version='1900', dst_nom_version='14.0',
                 )
             if self.settings.compiler.version == "12":
                 env.update({'QMAKESPEC': 'win32-msvc2013'})
