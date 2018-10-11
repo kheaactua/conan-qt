@@ -351,7 +351,10 @@ class QtConan(ConanFile):
             self.env_info.path.append(os.path.join(self.package_folder, "bin"))
         self.env_info.CMAKE_PREFIX_PATH.append(self.package_folder)
 
-        if 'Linux' == self.settings.os:
+        # Specify plugin path
+        self.env_info.QT_QPA_PLATFORM_PLUGIN_PATH = os.path.join(self.package_folder, 'plugins', 'platforms')
+
+        if tools.os_info.is_linux:
 
             # Attempt to fix the uic LD_LIBRARY_PATH issues that I can't seem
             # to address through CMake
