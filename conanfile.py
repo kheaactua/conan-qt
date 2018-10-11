@@ -14,7 +14,7 @@ class QtConan(ConanFile):
     """
 
     name        = 'qt'
-    version     = "5.3.2"
+    version     = '5.3.2'
     description = 'Conan.io package for Qt library.'
     source_dir  = 'qt5'
     license     = 'LGPL'
@@ -69,6 +69,29 @@ class QtConan(ConanFile):
             except ConanException:
                 self.output.warn('Could not run system requirements installer.  Required packages might be missing.')
 
+    def build_requirements(self):
+        pack_names = []
+        if tools.os_info.with_apt:
+            pack_names = ["libxcb1-dev", "libx11-dev", "libc6-dev"]
+        elif tools.os_info.is_linux and not tools.os_info.with_pacman:
+            pack_names = ["libxcb-devel", "libX11-devel", "glibc-devel"]
+
+        if self.settings.arch == 'x86':
+            full_pack_names = []
+            for pack_name in pack_names:
+                full_pack_names += [pack_name + ':i386']
+            pack_names = full_pack_names
+
+        if pack_names:
+            installer = tools.SystemPackageTool()
+            try:
+                installer.install(' '.join(pack_names)) # Install the package
+            except ConanException:
+                self.output.warn('Could not install build requirements installer.  Requisite packages might be missing.')
+
+        if tools.os_info.is_windows and self.settings.compiler == "Visual Studio":
+            self.build_requires("jom_installer/1.1.2@bincrafters/stable")
+
     def config_options(self):
         if self.settings.os != 'Windows':
             del self.options.opengl
@@ -85,12 +108,6 @@ class QtConan(ConanFile):
         import platform_helpers
 
         (release, major) = [int(i) for i in self.version.split('.')[:2]]
-
-        if tools.os_info.is_windows:
-            self.output.info('Downloading jom')
-            tools.download('https://download.qt.io/official_releases/jom/jom_1_1_2.zip', 'jom.zip')
-            tools.unzip('jom.zip')
-
 
         ext = 'tar.xz' if self.settings.os == 'Linux' else 'zip'
         url = f'http://download.qt.io/archive/qt/{release}.{major}/{self.version}/single/qt-everywhere-opensource-src-{self.version}.{ext}'
