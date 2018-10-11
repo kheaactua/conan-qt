@@ -52,7 +52,8 @@ class QtConan(ConanFile):
                 'libxcb-xfixes0-dev', 'libxrender-dev', 'libxcb-shape0-dev',
                 'libxcb-randr0-dev', 'libxcb-render-util0', 'libxcb-render-util0-dev',
                 'libxcb-glx0-dev', 'libxcb-xinerama0', 'libxcb-xinerama0-dev',
-                'dos2unix', 'xz-utils', 'chrpath', 'libdbus-1-dev'
+                'dos2unix', 'xz-utils', 'chrpath', 'libdbus-1-dev',
+                'libfontconfig1-dev',
             ]
 
             if self.settings.arch == 'x86':
@@ -143,6 +144,7 @@ class QtConan(ConanFile):
             '-make libs',
             '-make tools',
             '-plugin-sql-sqlite',
+            '-fontconfig',
             f'-prefix {self.package_folder}',
             # "-skip texttospeech",
             # "-skip datavisualization",
