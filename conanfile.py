@@ -18,8 +18,7 @@ class qt(Generator):
 
     @property
     def content(self):
-        return "[Paths]\nPrefix = %s" % self.conanfile.deps_cpp_info["Qt"].rootpath.replace("\\", "/")
-
+        return "[Paths]\nPrefix = %s" % self.conanfile.deps_cpp_info["qt"].rootpath.replace("\\", "/")
 
 class QtConan(ConanFile):
 
@@ -43,13 +42,13 @@ class QtConan(ConanFile):
 
     _submodules = _getsubmodules()
 
-    name = "Qt"
+    name = "qt"
     version = "5.9.7"
-    description = "Conan.io package for Qt library."
+    description = "Conan.io package for qt library."
     url = "https://github.com/bincrafters/conan-qt"
     homepage = "https://www.qt.io/"
     license = "http://doc.qt.io/qt-5/lgpl.html"
-    author = "Bincrafters <bincrafters@gmail.com>"
+    author = "Matthew Russell <matthew.g.russell@gmail.com>, Bincrafters <bincrafters@gmail.com>"
     exports = ["LICENSE.md", "qtmodules.conf", "*.diff"]
     settings = "os", "arch", "compiler", "build_type"
 
@@ -101,7 +100,10 @@ class QtConan(ConanFile):
 
             if pack_names:
                 installer = tools.SystemPackageTool()
-                installer.install(" ".join([item + self._system_package_architecture() for item in pack_names]))
+                try:
+                    installer.install(" ".join([item + self._system_package_architecture() for item in pack_names]))
+                except ConanException:
+                    self.output.warn('Could not install build requirements installer.  Requisite packages might be missing.')
 
         if tools.os_info.is_windows and self.settings.compiler == "Visual Studio":
             self.build_requires("jom_installer/1.1.2@bincrafters/stable")
@@ -152,14 +154,22 @@ class QtConan(ConanFile):
                 installer.install(" ".join([item + self._system_package_architecture() for item in pack_names]))
 
     def source(self):
-        url = "http://download.qt.io/official_releases/qt/{0}/{1}/single/qt-everywhere-opensource-src-{1}" \
+        url = "http://download.qt.io/official_releases/qt/{0}/{1}/single/qt-everywhere-opensource-src-{1}"\
             .format(self.version[:self.version.rfind('.')], self.version)
-        if tools.os_info.is_windows:
-            tools.get("%s.zip" % url)
-        elif sys.version_info.major >= 3:
-            tools.get("%s.tar.xz" % url)
-        else:  # python 2 cannot deal with .xz archives
-            self.run("wget -qO- %s.tar.xz | tar -xJ " % url)
+        url = url + (".zip" if tools.os_info.is_windows else ".tar.xz")
+
+        from source_cache import copyFromCache
+        archive = os.path.basename(url)
+        if copyFromCache(archive):
+            if tools.os_info.is_windows:
+                tools.unzip(archive)
+            else:
+                self.run("tar -xJf %s" % archive)
+        else:
+            if tools.os_info.is_windows:
+                tools.get(url)
+            else:
+                self.run("wget -qO- %s | tar -xJ " % url)
         shutil.move("qt-everywhere-opensource-src-%s" % self.version, "qt5")
 
         for patch in ["cc04651dea4c4678c626cb31b3ec8394426e2b25.diff"]:
@@ -349,6 +359,39 @@ class QtConan(ConanFile):
         self.copy("bin/qt.conf", src="qtbase")
 
     def package_info(self):
-        if self.settings.os == "Windows":
+        if tools.os_info.is_windows:
             self.env_info.path.append(os.path.join(self.package_folder, "bin"))
         self.env_info.CMAKE_PREFIX_PATH.append(self.package_folder)
+
+        # Specify plugin path
+        self.env_info.QT_QPA_PLATFORM_PLUGIN_PATH = os.path.join(self.package_folder, 'plugins', 'platforms')
+
+        # Potentially set QT_PLUGIN_PATH, QML_IMPORT_PATH, QML2_IMPORT_PATH
+        # https://github.com/pyqt/python-qt5/wiki/Qt-Environment-Variable-Reference#qt-qpa-platform-plugin-path
+
+        if tools.os_info.is_linux:
+
+            # Attempt to fix the uic LD_LIBRARY_PATH issues that I can't seem
+            # to address through CMake
+            self.env_info.LD_LIBRARY_PATH.append(os.path.join(self.package_folder, 'lib'))
+
+            # Qt appears to hard code the font path which leads to run time
+            # errors
+            self.env_info.QT_QPA_FONTDIR = os.path.join(self.package_folder, 'lib', 'fonts')
+
+            # Populate the pkg-config environment variables
+            with tools.pythonpath(self):
+                from platform_helpers import adjustPath, appendPkgConfigPath
+
+                pkg_config_path = os.path.join(self.package_folder, 'lib', 'pkgconfig')
+                appendPkgConfigPath(adjustPath(pkg_config_path), self.env_info)
+
+                pc_files = glob.glob(adjustPath(os.path.join(pkg_config_path, '*.pc')))
+                for f in pc_files:
+                    p_name = re.sub(r'\.pc$', '', os.path.basename(f))
+                    p_name = re.sub(r'\W', '_', p_name.upper())
+                    setattr(self.env_info, 'PKG_CONFIG_%s_PREFIX'%p_name, adjustPath(self.package_folder))
+
+                appendPkgConfigPath(adjustPath(pkg_config_path), self.env_info)
+
+# vim: ts=4 sw=4 expandtab ffs=unix ft=python foldmethod=marker :
