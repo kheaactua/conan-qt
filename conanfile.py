@@ -1,14 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import re
+import glob
 import os
 import shutil
-import sys
 
 import configparser
 from conans import ConanFile, tools
 from conans.model import Generator
-from conans.errors import ConanInvalidConfiguration
+from conans.errors import ConanInvalidConfiguration, ConanException
 
 
 class qt(Generator):
