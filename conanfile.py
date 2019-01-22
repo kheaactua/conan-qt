@@ -14,7 +14,7 @@ class QtConan(ConanFile):
     """
 
     name        = 'qt'
-    version     = "5.3.2"
+    version     = '5.3.2'
     description = 'Conan.io package for Qt library.'
     source_dir  = 'qt5'
     license     = 'LGPL'
@@ -52,7 +52,8 @@ class QtConan(ConanFile):
                 'libxcb-xfixes0-dev', 'libxrender-dev', 'libxcb-shape0-dev',
                 'libxcb-randr0-dev', 'libxcb-render-util0', 'libxcb-render-util0-dev',
                 'libxcb-glx0-dev', 'libxcb-xinerama0', 'libxcb-xinerama0-dev',
-                'dos2unix', 'xz-utils', 'chrpath', 'libdbus-1-dev'
+                'dos2unix', 'xz-utils', 'chrpath', 'libdbus-1-dev',
+                'libfontconfig1-dev',
             ]
 
             if self.settings.arch == 'x86':
@@ -68,6 +69,29 @@ class QtConan(ConanFile):
                 installer.install(' '.join(pack_names)) # Install the package
             except ConanException:
                 self.output.warn('Could not run system requirements installer.  Required packages might be missing.')
+
+    def build_requirements(self):
+        pack_names = []
+        if tools.os_info.with_apt:
+            pack_names = ["libxcb1-dev", "libx11-dev", "libc6-dev"]
+        elif tools.os_info.is_linux and not tools.os_info.with_pacman:
+            pack_names = ["libxcb-devel", "libX11-devel", "glibc-devel"]
+
+        if self.settings.arch == 'x86':
+            full_pack_names = []
+            for pack_name in pack_names:
+                full_pack_names += [pack_name + ':i386']
+            pack_names = full_pack_names
+
+        if pack_names:
+            installer = tools.SystemPackageTool()
+            try:
+                installer.install(' '.join(pack_names)) # Install the package
+            except ConanException:
+                self.output.warn('Could not install build requirements installer.  Requisite packages might be missing.')
+
+        if tools.os_info.is_windows and self.settings.compiler == "Visual Studio":
+            self.build_requires("jom_installer/1.1.2@bincrafters/stable")
 
     def config_options(self):
         if self.settings.os != 'Windows':
@@ -85,12 +109,6 @@ class QtConan(ConanFile):
         import platform_helpers
 
         (release, major) = [int(i) for i in self.version.split('.')[:2]]
-
-        if tools.os_info.is_windows:
-            self.output.info('Downloading jom')
-            tools.download('https://download.qt.io/official_releases/jom/jom_1_1_2.zip', 'jom.zip')
-            tools.unzip('jom.zip')
-
 
         ext = 'tar.xz' if self.settings.os == 'Linux' else 'zip'
         url = f'http://download.qt.io/archive/qt/{release}.{major}/{self.version}/single/qt-everywhere-opensource-src-{self.version}.{ext}'
@@ -126,6 +144,7 @@ class QtConan(ConanFile):
             '-make libs',
             '-make tools',
             '-plugin-sql-sqlite',
+            '-fontconfig',
             f'-prefix {self.package_folder}',
             # "-skip texttospeech",
             # "-skip datavisualization",
@@ -165,9 +184,12 @@ class QtConan(ConanFile):
 
         def createPlatform(
             src_year='2012', src_version='1700', src_nom_version='11.0',
-            dst_year='2017', dst_version='1915', dst_nom_version='15.8',
+            dst_year='2015', dst_version='1900', dst_nom_version='14.0',
         ):
             """
+            Update: This was originally written for VS2017, but it turns out
+                    that that's not possible, so this won't likely be used.
+
             Function to create the proper platform.  Note, the version number
             can be sourced from
             https://en.wikipedia.org/wiki/Microsoft_Visual_C%2B%2B .
@@ -194,12 +216,7 @@ class QtConan(ConanFile):
         if self.settings.compiler == "Visual Studio":
             args.append("-mp")
             if self.settings.compiler.version == "15":
-                env.update({'QMAKESPEC': 'win32-msvc2017'})
-                args += ["-platform win32-msvc2017"]
-                createPlatform(
-                    src_year='2012', src_version='1700', src_nom_version='11.0',
-                    dst_year='2017', dst_version='1915', dst_nom_version='15.8', # TODO 1915 and 15.8 might be wrong!  Input these somehow
-                )
+                raise ConanException('Qt 5.3.2 cannot be build with MSVC 2013')
             if self.settings.compiler.version == "14":
                 env.update({'QMAKESPEC': 'win32-msvc2015'})
                 args += ["-platform win32-msvc2015"]
@@ -313,22 +330,22 @@ class QtConan(ConanFile):
         elif 'Linux' == self.settings.os:
             self.run("cd %s && make install"%(self.source_dir))
 
-            # Set the RPATH of the installed binaries
-            # Maybe the RUNPATH should also be set? http://blog.qt.io/blog/2011/10/28/rpath-and-runpath/
-            # https://forum.qt.io/topic/59670/how-to-compile-qt-with-relative-runpath-paths/4
-            #
-            # UPDATE: This approach either seems to fail on prestine systems,
-            #         or this simply isn't working.  Perhaps this should be
-            #         removed.  (Going to set LD_LIBRARY_PATH anyways)
-            #         (Matt Sep 2018)
-            self.output.info('Modifying RPATH on Qt binaries to use relative paths')
-            binaries = glob.glob(os.path.join(self.package_folder, 'bin', '*'))
-            for b in binaries:
-                try:
-                    # self.output.info(f"chrpath -r '$OGIGIN/../lib' {b}")
-                    self.run(f"chrpath -r '$ORIGIN/../lib' {b}")
-                except ConanException:
-                    self.output.warn(f'Could not modify rpath on {b}')
+            # # Set the RPATH of the installed binaries
+            # # Maybe the RUNPATH should also be set? http://blog.qt.io/blog/2011/10/28/rpath-and-runpath/
+            # # https://forum.qt.io/topic/59670/how-to-compile-qt-with-relative-runpath-paths/4
+            # #
+            # # UPDATE: This approach either seems to fail on prestine systems,
+            # #         or this simply isn't working.  Perhaps this should be
+            # #         removed.  (Going to set LD_LIBRARY_PATH anyways)
+            # #         (Matt Sep 2018)
+            # self.output.info('Modifying RPATH on Qt binaries to use relative paths')
+            # binaries = glob.glob(os.path.join(self.package_folder, 'bin', '*'))
+            # for b in binaries:
+            #     try:
+            #         # self.output.info(f"chrpath -r '$OGIGIN/../lib' {b}")
+            #         self.run(f"chrpath -r '$ORIGIN/../lib' {b}")
+            #     except ConanException:
+            #         self.output.warn(f'Could not modify rpath on {b}')
 
     def package_info(self):
         libs = [
@@ -356,7 +373,10 @@ class QtConan(ConanFile):
         # Make it easier for CMake to find Qt
         self.env_info.CMAKE_PREFIX_PATH.append(self.package_folder)
 
-        if 'Linux' == self.settings.os:
+        # Specify plugin path
+        self.env_info.QT_QPA_PLATFORM_PLUGIN_PATH = os.path.join(self.package_folder, 'plugins', 'platforms')
+
+        if tools.os_info.is_linux:
 
             # Attempt to fix the uic LD_LIBRARY_PATH issues that I can't seem
             # to address through CMake
