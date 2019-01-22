@@ -376,7 +376,7 @@ class QtConan(ConanFile):
             # as a linker dependency, and fail to build.
             for l in self.cpp_info.libs:
                 for d in self.cpp_info.libdirs:
-                    if not os.path.exists(self.package_folder, d, '%s.lib'%l):
+                    if not os.path.exists(os.path.join(self.package_folder, d, '%s.lib'%l)):
                         self.cpp_info.libs.remove(l)
             self.output.info('Exporting libs: %s'%' '.join(self.cpp_info.libs))
 
