@@ -356,18 +356,28 @@ class QtConan(ConanFile):
         self.cpp_info.libs = []
         self.cpp_info.includedirs = ["include"]
         for lib in libs:
-            if self.settings.os == "Windows" and self.settings.build_type == "Debug":
+            if tools.os_info.is_windows and self.settings.build_type == "Debug":
                 suffix = "d"
-            elif self.settings.os == "Macos" and self.settings.build_type == "Debug":
+            elif tools.os_info.is_macos and self.settings.build_type == "Debug":
                 suffix = "_debug"
             else:
                 suffix = ""
+
             self.cpp_info.libs += ["Qt5%s%s" % (lib, suffix)]
             self.cpp_info.includedirs += ["include/Qt%s" % lib]
 
         # Put qmake and DLLs in the path
-        if self.settings.os == "Windows":
+        if tools.os_info.is_windows:
             self.env_info.path.append(os.path.join(self.package_folder, 'bin'))
+
+            # Ensure that everything in libs has a .lib file associated with
+            # it, otherwise newer versions of conan will add a non-existant lib
+            # as a linker dependency, and fail to build.
+            for l in self.cpp_info.libs:
+                for d in self.cpp_info.libdirs:
+                    if not os.path.exists(self.package_folder, d, '%s.lib'%l):
+                        self.cpp_info.libs.remove(l)
+            self.output.info('Exporting libs: %s'%' '.join(self.cpp_info.libs))
 
         # Make it easier for CMake to find Qt
         self.env_info.CMAKE_PREFIX_PATH.append(self.package_folder)
